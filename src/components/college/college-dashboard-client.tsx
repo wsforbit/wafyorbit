@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import {
   School,
   GraduationCap,
@@ -292,6 +293,15 @@ export function CollegeDashboardClient({ college, students, leaders }: Props) {
                 </div>
               )}
             </div>
+
+            <div className="pt-2">
+              <Button asChild size="sm" className="h-8 text-xs gap-1.5 font-medium shadow-xs">
+                <Link href="/college/update-orbit">
+                  <Layers className="size-3.5" />
+                  <span>Update Orbit Assignments</span>
+                </Link>
+              </Button>
+            </div>
           </div>
 
           {/* Quick Progress Dial */}
@@ -369,7 +379,14 @@ export function CollegeDashboardClient({ college, students, leaders }: Props) {
             <AlertCircle className="size-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-serif font-bold text-foreground">{unassignedCount}</div>
+            <div className="flex items-baseline justify-between">
+              <div className="text-3xl font-serif font-bold text-foreground">{unassignedCount}</div>
+              {unassignedCount > 0 && (
+                <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs text-primary font-medium">
+                  <Link href="/college/update-orbit">Assign Now &rarr;</Link>
+                </Button>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               {unassignedCount === 0 ? "All scholars allocated!" : "Pending orbit jurisdiction allocation"}
             </p>

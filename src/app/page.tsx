@@ -28,7 +28,7 @@ export default async function HomePage() {
     if (metrics.orbitCount === 0 && metrics.collegeCount === 0 && metrics.studentCount === 0) {
       return (
         <span className="text-muted-foreground">
-          Currently initializing system records with <strong className="text-foreground">0</strong> active orbits, <strong className="text-foreground">0</strong> affiliated colleges, and <strong className="text-foreground">0</strong> enrolled students.
+          Currently initializing system records with <strong className="text-foreground">0</strong> orbits, <strong className="text-foreground">0</strong> affiliated colleges, and <strong className="text-foreground">0</strong> enrolled students.
         </span>
       );
     }
@@ -117,7 +117,7 @@ export default async function HomePage() {
               <Card className="hover:border-primary/40 transition-colors">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium font-sans text-muted-foreground">
-                    Total Active Orbits
+                    Total Orbit
                   </CardTitle>
                   <div className="size-8 rounded bg-primary/10 flex items-center justify-center text-primary">
                     <Layers className="size-4" />
@@ -168,7 +168,7 @@ export default async function HomePage() {
                     {metrics.studentCount.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Registered scholars across all batches
+                    Scholars across all stages and orbits
                   </p>
                 </CardContent>
               </Card>
@@ -237,7 +237,7 @@ export default async function HomePage() {
                 </div>
 
                 <p className="text-sm text-muted-foreground py-5 leading-relaxed">
-                  Browse real-time records and explore affiliated colleges, registered students, active orbits, and designated leadership councils.
+                  Browse real-time records and explore affiliated colleges, registered students, orbits, and designated leadership councils.
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 pb-6">

@@ -120,7 +120,6 @@ export function OrbitTableClient({ initialOrbits }: { initialOrbits: Orbit[] }) 
                 </div>
               </TableHead>
               <TableHead>Panchayaths / Jurisdiction</TableHead>
-              <TableHead className="hidden md:table-cell">Description</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -155,9 +154,6 @@ export function OrbitTableClient({ initialOrbits }: { initialOrbits: Orbit[] }) 
                         <span className="text-xs text-muted-foreground italic">—</span>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-xs text-muted-foreground max-w-xs truncate">
-                    {orbit.description || "—"}
                   </TableCell>
                 </TableRow>
               );
