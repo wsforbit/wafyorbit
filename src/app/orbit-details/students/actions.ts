@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export interface StudentOrbitSearchResult {
   cicno: string;
@@ -59,10 +59,10 @@ export async function findStudentOrbitByCicnoAction(
 
     let studentRecord: any = null;
 
-    // 1. Direct exact match on cicno
+    // 1. Direct exact match on cicno (Only query existing columns on students table)
     const { data: s1, error: err1 } = await supabase
       .from("students")
-      .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+      .select("cicno, student_name, class_name, place, panchayath, pin_code, role, orbit_id, affno")
       .eq("cicno", cleanCicno)
       .maybeSingle();
 
@@ -73,7 +73,7 @@ export async function findStudentOrbitByCicnoAction(
       const fallbackClient = await createClient();
       const res = await fallbackClient
         .from("students")
-        .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+        .select("cicno, student_name, class_name, place, panchayath, pin_code, role, orbit_id, affno")
         .eq("cicno", cleanCicno)
         .maybeSingle();
       if (res.data) {
@@ -86,7 +86,7 @@ export async function findStudentOrbitByCicnoAction(
     if (!studentRecord) {
       const { data: s2 } = await supabase
         .from("students")
-        .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+        .select("cicno, student_name, class_name, place, panchayath, pin_code, role, orbit_id, affno")
         .ilike("cicno", cleanCicno)
         .maybeSingle();
 
@@ -97,7 +97,7 @@ export async function findStudentOrbitByCicnoAction(
     if (!studentRecord && digitsOnly && digitsOnly !== cleanCicno) {
       const { data: s3 } = await supabase
         .from("students")
-        .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+        .select("cicno, student_name, class_name, place, panchayath, pin_code, role, orbit_id, affno")
         .eq("cicno", digitsOnly)
         .maybeSingle();
 
@@ -108,7 +108,7 @@ export async function findStudentOrbitByCicnoAction(
     if (!studentRecord && digitsOnly) {
       const { data: s4List } = await supabase
         .from("students")
-        .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+        .select("cicno, student_name, class_name, place, panchayath, pin_code, role, orbit_id, affno")
         .ilike("cicno", `%${digitsOnly}%`)
         .limit(5);
 
@@ -173,7 +173,7 @@ export async function findStudentOrbitByCicnoAction(
       class_name: studentRecord.class_name || "1",
       place: studentRecord.place || "—",
       panchayath: studentRecord.panchayath || null,
-      district: studentRecord.district || null,
+      district: orbitData?.district || collegeData?.district || null,
       role: studentRecord.role || "member",
       orbit: orbitData,
       college: collegeData,

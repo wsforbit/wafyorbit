@@ -85,7 +85,7 @@ export function FindOrbitClient() {
               <Search className="absolute left-3.5 top-3 size-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Enter CIC Number (e.g. 16828 or CIC16828)..."
+                placeholder="Enter your CIC Number (e.g. 16828)..."
                 value={cicnoInput}
                 onChange={(e) => setCicnoInput(e.target.value)}
                 disabled={isPending}
