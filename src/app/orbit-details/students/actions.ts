@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export interface StudentOrbitSearchResult {
   cicno: string;
@@ -37,14 +37,14 @@ export interface FindOrbitResponse {
 /**
  * Server action to securely query student and assigned orbit by CIC Number.
  * Strict Privacy: Omits all phone numbers, emails, guardian contacts.
- * Robust Lookup: Matches exact numbers (e.g. 16828), prefixed (CIC16828), or case-insensitive.
+ * Robust Lookup: Matches direct numeric IDs (e.g. 16828), case-insensitive, or substring.
  */
 export async function findStudentOrbitByCicnoAction(
   cicnoQuery: string
 ): Promise<FindOrbitResponse> {
-  const cleanCicno = (cicnoQuery || "").trim();
+  const rawInput = (cicnoQuery || "").trim();
 
-  if (!cleanCicno) {
+  if (!rawInput) {
     return {
       success: false,
       error: "Please enter your CIC Number.",
@@ -52,81 +52,93 @@ export async function findStudentOrbitByCicnoAction(
   }
 
   try {
-    const supabase = await createAdminClient();
+    let supabase = await createAdminClient();
+
+    const cleanCicno = rawInput.trim();
     const digitsOnly = cleanCicno.replace(/\D/g, "");
 
-    // 1. Primary Query: Try matching cicno with various flexible formats
-    const searchConditions: string[] = [
-      `cicno.eq.${cleanCicno}`,
-      `cicno.ilike.${cleanCicno}`,
-    ];
+    let studentRecord: any = null;
 
-    if (digitsOnly && digitsOnly !== cleanCicno) {
-      searchConditions.push(`cicno.eq.${digitsOnly}`);
-    }
-    if (digitsOnly) {
-      searchConditions.push(`cicno.eq.CIC${digitsOnly}`);
-      searchConditions.push(`cicno.ilike.%${digitsOnly}%`);
-    }
-
-    const orFilter = searchConditions.join(",");
-
-    let { data: students, error } = await supabase
+    // 1. Direct exact match on cicno
+    const { data: s1, error: err1 } = await supabase
       .from("students")
       .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
-      .or(orFilter)
-      .limit(10);
+      .eq("cicno", cleanCicno)
+      .maybeSingle();
 
-    // Fallback: If no match with OR filter, try simple direct query
-    if ((!students || students.length === 0) && !error) {
-      const fallbackQuery = await supabase
+    if (s1) {
+      studentRecord = s1;
+    } else if (err1) {
+      console.warn("Direct eq query error, trying standard client fallback:", err1);
+      const fallbackClient = await createClient();
+      const res = await fallbackClient
         .from("students")
         .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
-        .ilike("cicno", `%${cleanCicno}%`)
-        .limit(5);
-
-      if (fallbackQuery.data && fallbackQuery.data.length > 0) {
-        students = fallbackQuery.data;
+        .eq("cicno", cleanCicno)
+        .maybeSingle();
+      if (res.data) {
+        studentRecord = res.data;
+        supabase = fallbackClient;
       }
     }
 
-    if (error) {
-      console.error("Error finding student orbit:", error);
-      return {
-        success: false,
-        error: "Unable to complete search at this time. Please try again.",
-      };
+    // 2. Case-insensitive ilike match if not found
+    if (!studentRecord) {
+      const { data: s2 } = await supabase
+        .from("students")
+        .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+        .ilike("cicno", cleanCicno)
+        .maybeSingle();
+
+      if (s2) studentRecord = s2;
     }
 
-    if (!students || students.length === 0) {
+    // 3. Digits-only match (e.g. user entered "16828" or "CIC 16828")
+    if (!studentRecord && digitsOnly && digitsOnly !== cleanCicno) {
+      const { data: s3 } = await supabase
+        .from("students")
+        .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+        .eq("cicno", digitsOnly)
+        .maybeSingle();
+
+      if (s3) studentRecord = s3;
+    }
+
+    // 4. Substring pattern match (e.g. contains 16828)
+    if (!studentRecord && digitsOnly) {
+      const { data: s4List } = await supabase
+        .from("students")
+        .select("cicno, student_name, class_name, place, panchayath, district, role, orbit_id, affno")
+        .ilike("cicno", `%${digitsOnly}%`)
+        .limit(5);
+
+      if (s4List && s4List.length > 0) {
+        studentRecord = s4List[0];
+      }
+    }
+
+    // If still not found
+    if (!studentRecord) {
       return {
         success: false,
         error: `No registered scholar found with CIC Number "${cleanCicno}". Please verify your number or contact your college administration.`,
       };
     }
 
-    // Select the best matching student (exact match preferred)
-    const exactMatch =
-      students.find(
-        (s) =>
-          s.cicno.toLowerCase() === cleanCicno.toLowerCase() ||
-          (digitsOnly && s.cicno.replace(/\D/g, "") === digitsOnly)
-      ) || students[0];
-
-    // 2. Fetch Orbit Details independently to prevent foreign-key join errors
+    // 5. Fetch Orbit Details
     let orbitData: StudentOrbitSearchResult["orbit"] = null;
-    if (exactMatch.orbit_id) {
+    if (studentRecord.orbit_id) {
       const { data: orb } = await supabase
         .from("orbits")
         .select("id, name, district, taluk, constituency, panchayaths, status")
-        .eq("id", exactMatch.orbit_id)
+        .eq("id", studentRecord.orbit_id)
         .maybeSingle();
 
       if (orb) {
         orbitData = {
           id: orb.id,
           name: orb.name,
-          district: orb.district,
+          district: orb.district || "—",
           taluk: orb.taluk || "—",
           constituency: orb.constituency || null,
           panchayaths: orb.panchayaths || null,
@@ -135,13 +147,13 @@ export async function findStudentOrbitByCicnoAction(
       }
     }
 
-    // 3. Fetch College Details independently
+    // 6. Fetch College Details
     let collegeData: StudentOrbitSearchResult["college"] = null;
-    if (exactMatch.affno) {
+    if (studentRecord.affno) {
       const { data: col } = await supabase
         .from("colleges")
         .select("affno, name, short_name, place, district")
-        .eq("affno", exactMatch.affno)
+        .eq("affno", studentRecord.affno)
         .maybeSingle();
 
       if (col) {
@@ -156,13 +168,13 @@ export async function findStudentOrbitByCicnoAction(
     }
 
     const result: StudentOrbitSearchResult = {
-      cicno: exactMatch.cicno,
-      student_name: exactMatch.student_name,
-      class_name: exactMatch.class_name || "1",
-      place: exactMatch.place || "—",
-      panchayath: exactMatch.panchayath || null,
-      district: exactMatch.district || null,
-      role: exactMatch.role || "member",
+      cicno: studentRecord.cicno,
+      student_name: studentRecord.student_name,
+      class_name: studentRecord.class_name || "1",
+      place: studentRecord.place || "—",
+      panchayath: studentRecord.panchayath || null,
+      district: studentRecord.district || null,
+      role: studentRecord.role || "member",
       orbit: orbitData,
       college: collegeData,
     };
@@ -175,7 +187,7 @@ export async function findStudentOrbitByCicnoAction(
     console.error("findStudentOrbitByCicnoAction exception:", err);
     return {
       success: false,
-      error: "An unexpected error occurred. Please try again.",
+      error: "An unexpected error occurred while searching. Please try again.",
     };
   }
 }
