@@ -314,15 +314,15 @@ export default async function AdminDashboardPage() {
                 </div>
               </Card>
 
-              {/* 4. Orbit Leaders Management */}
+              {/* 4. Leadership Delegation Management */}
               <Card className="p-4 flex flex-col justify-between hover:border-primary/50 transition-colors bg-card">
                 <div className="space-y-2">
                   <div className="size-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
                     <Award className="size-5" />
                   </div>
-                  <div className="font-serif font-bold text-base text-foreground">Orbit Leaders Matrix</div>
+                  <div className="font-serif font-bold text-base text-foreground">Leadership Delegation Matrix</div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Designate Leaders & Assistant Leaders per orbit with automated college affiliation links.
+                    Designate Orbit Leaders, District Leaders, and Malappuram Constituency Leaders with multi-tier sync.
                   </p>
                 </div>
                 <div className="pt-4 flex flex-col gap-1.5">
@@ -334,7 +334,7 @@ export default async function AdminDashboardPage() {
                   </Link>
                   <Link href="/admin/orbit-leaders/settings">
                     <Button variant="outline" size="sm" className="w-full justify-between text-xs h-8">
-                      <span>Appoint Leaders Matrix</span>
+                      <span>Appoint & Configure Leaders</span>
                       <Settings className="size-3" />
                     </Button>
                   </Link>

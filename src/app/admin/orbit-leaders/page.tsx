@@ -4,14 +4,21 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getOrbitLeadershipData, getAdminColleges } from "@/lib/supabase/data";
+import {
+  getOrbitLeadershipData,
+  getDistrictLeadershipData,
+  getConstituencyLeadershipData,
+  getAdminColleges,
+} from "@/lib/supabase/data";
 import { OrbitLeadersListClient } from "@/components/admin/orbit-leaders-list-client";
 
 export const revalidate = 0;
 
 export default async function AdminOrbitLeadersPage() {
-  const [leadershipRecords, colleges] = await Promise.all([
+  const [leadershipRecords, districtRecords, constituencyRecords, colleges] = await Promise.all([
     getOrbitLeadershipData(),
+    getDistrictLeadershipData(),
+    getConstituencyLeadershipData(),
     getAdminColleges(),
   ]);
 
@@ -32,10 +39,10 @@ export default async function AdminOrbitLeadersPage() {
                 <span className="text-xs text-muted-foreground font-mono">Leadership Governance</span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-serif font-bold text-foreground mt-1">
-                Orbit Leaders & Assistant Leaders
+                Leadership Delegation Governance
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Official delegation registry of appointed student leaders and assistant coordinators across all active institutional orbits.
+                Multi-tier delegation matrix for appointed Orbit Leaders, District Leaders, and Malappuram Constituency Leaders.
               </p>
             </div>
 
@@ -43,15 +50,17 @@ export default async function AdminOrbitLeadersPage() {
             <Link href="/admin/orbit-leaders/settings">
               <Button size="default" variant="default" className="gap-2 font-medium shadow-sm hover:opacity-95">
                 <Settings className="size-4" />
-                <span>Leaders Settings</span>
+                <span>Appoint & Configure Leaders</span>
                 <ArrowRight className="size-4" />
               </Button>
             </Link>
           </div>
 
-          {/* Interactive Client Component with Sticky Filter Card */}
+          {/* Interactive Multi-Tier Leadership Component */}
           <OrbitLeadersListClient
-            initialRecords={leadershipRecords}
+            initialOrbitRecords={leadershipRecords}
+            initialDistrictRecords={districtRecords}
+            initialConstituencyRecords={constituencyRecords}
             colleges={colleges}
           />
 

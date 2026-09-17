@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   title: "Wafy Orbit | Excellence in Academic & Institutional Spheres",
   description:
     "Official portal for Wafy Orbit - interconnecting orbits, affiliated colleges, leaders, and students with real-time analytics and management.",
+  icons: {
+    icon: "/orbitlogo.png",
+    shortcut: "/orbitlogo.png",
+    apple: "/orbitlogo.png",
+  },
 };
 
 export default function RootLayout({

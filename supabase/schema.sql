@@ -69,6 +69,27 @@ CREATE TABLE IF NOT EXISTS public.orbit_leaders (
     appointed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 6b. District Leaders Table (1 Leader per Active District)
+CREATE TABLE IF NOT EXISTS public.district_leaders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    district TEXT NOT NULL UNIQUE,
+    student_id TEXT NOT NULL REFERENCES public.students(cicno) ON DELETE CASCADE,
+    position_title TEXT NOT NULL DEFAULT 'District Leader',
+    term_year TEXT NOT NULL DEFAULT '2025-2026',
+    appointed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 6c. Constituency Leaders Table (1 Leader per Malappuram Constituency)
+CREATE TABLE IF NOT EXISTS public.constituency_leaders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    district TEXT NOT NULL DEFAULT 'Malappuram',
+    constituency TEXT NOT NULL UNIQUE,
+    student_id TEXT NOT NULL REFERENCES public.students(cicno) ON DELETE CASCADE,
+    position_title TEXT NOT NULL DEFAULT 'Constituency Leader',
+    term_year TEXT NOT NULL DEFAULT '2025-2026',
+    appointed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 7. User Profiles Table
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -141,6 +162,8 @@ ALTER TABLE public.colleges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orbits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orbit_leaders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.district_leaders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.constituency_leaders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Colleges
@@ -162,6 +185,16 @@ CREATE POLICY "Enable all access for students" ON public.students FOR ALL USING 
 DROP POLICY IF EXISTS "Public can view leaders" ON public.orbit_leaders;
 DROP POLICY IF EXISTS "Enable all access for leaders" ON public.orbit_leaders;
 CREATE POLICY "Enable all access for leaders" ON public.orbit_leaders FOR ALL USING (true) WITH CHECK (true);
+
+-- District Leaders
+DROP POLICY IF EXISTS "Public can view district leaders" ON public.district_leaders;
+DROP POLICY IF EXISTS "Enable all access for district leaders" ON public.district_leaders;
+CREATE POLICY "Enable all access for district leaders" ON public.district_leaders FOR ALL USING (true) WITH CHECK (true);
+
+-- Constituency Leaders
+DROP POLICY IF EXISTS "Public can view constituency leaders" ON public.constituency_leaders;
+DROP POLICY IF EXISTS "Enable all access for constituency leaders" ON public.constituency_leaders;
+CREATE POLICY "Enable all access for constituency leaders" ON public.constituency_leaders FOR ALL USING (true) WITH CHECK (true);
 
 -- Profiles
 DROP POLICY IF EXISTS "Users can read profiles" ON public.profiles;

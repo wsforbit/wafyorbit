@@ -7,6 +7,8 @@ import type {
   College,
   OrbitLeader,
   OrbitLeadershipRecord,
+  DistrictLeadershipRecord,
+  ConstituencyLeadershipRecord,
 } from "@/types/database.types";
 
 /**
@@ -342,6 +344,228 @@ export async function getOrbitLeadershipData(): Promise<OrbitLeadershipRecord[]>
     });
   } catch (error) {
     console.error("Error fetching leadership matrix:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetches District Leadership matrix (1 Leader per Active District)
+ * Highly optimized with in-memory district indexing to eliminate slow page loads
+ */
+export async function getDistrictLeadershipData(): Promise<DistrictLeadershipRecord[]> {
+  try {
+    const supabase = await createClient();
+
+    // 1. Parallel fetch active orbits, all students with relations, and district leaders
+    const [orbitsRes, studentsRes, distLeadersRes] = await Promise.all([
+      supabase.from("orbits").select("*").eq("status", "active").order("district", { ascending: true }),
+      supabase.from("students").select("*, college:colleges(*), orbit:orbits(*)").order("student_name", { ascending: true }),
+      supabase.from("district_leaders").select("*, student:students(*, college:colleges(*), orbit:orbits(*))"),
+    ]);
+
+    const activeOrbits = (orbitsRes.data || []) as Orbit[];
+    const allStudents = (studentsRes.data || []) as Student[];
+    const distLeaders = (distLeadersRes.data || []) as any[];
+
+    // 2. Index active orbits by district
+    const districtOrbitMap = new Map<string, Orbit[]>();
+    const districtStateMap = new Map<string, string>();
+
+    activeOrbits.forEach((orb) => {
+      const dist = (orb.district || "").trim();
+      if (!dist) return;
+
+      if (!districtOrbitMap.has(dist)) {
+        districtOrbitMap.set(dist, []);
+        districtStateMap.set(dist, orb.state || "Kerala");
+      }
+      districtOrbitMap.get(dist)!.push(orb);
+    });
+
+    // 3. Index eligible students by district (students assigned to orbits in that district)
+    const districtStudentsMap = new Map<string, Student[]>();
+    // Pre-create entries
+    districtOrbitMap.forEach((_, dist) => {
+      districtStudentsMap.set(dist, []);
+    });
+
+    allStudents.forEach((student) => {
+      if (student.orbit?.district && districtStudentsMap.has(student.orbit.district)) {
+        districtStudentsMap.get(student.orbit.district)!.push(student);
+      }
+    });
+
+    // 4. Index appointed district leaders by district
+    const districtLeaderMap = new Map<string, any>();
+    distLeaders.forEach((dl) => {
+      if (dl.district) {
+        districtLeaderMap.set(dl.district, dl);
+      }
+    });
+
+    // Fallback: If no record in district_leaders table, check students with role === 'district_leader'
+    allStudents.forEach((s) => {
+      if (s.role === "district_leader" && s.orbit?.district && !districtLeaderMap.has(s.orbit.district)) {
+        districtLeaderMap.set(s.orbit.district, {
+          student_id: s.cicno,
+          district: s.orbit.district,
+          student: s,
+        });
+      }
+    });
+
+    // 5. Construct District Leadership Records
+    const records: DistrictLeadershipRecord[] = [];
+    const sortedDistricts = Array.from(districtOrbitMap.keys()).sort((a, b) => a.localeCompare(b));
+
+    sortedDistricts.forEach((dist) => {
+      const orbitsInDist = districtOrbitMap.get(dist) || [];
+      const eligibleStudents = districtStudentsMap.get(dist) || [];
+      const leaderRecord = districtLeaderMap.get(dist);
+
+      let leaderInfo = null;
+      if (leaderRecord?.student) {
+        const s = leaderRecord.student;
+        leaderInfo = {
+          cicno: s.cicno,
+          student_name: s.student_name,
+          affno: s.affno || (s.college ? s.college.affno : null),
+          college_name: s.college ? s.college.name : null,
+          orbit_id: s.orbit_id || (s.orbit ? s.orbit.id : null),
+          orbit_name: s.orbit ? s.orbit.name : null,
+          class_name: s.class_name,
+          phone: s.phone || null,
+        };
+      }
+
+      records.push({
+        district: dist,
+        state: districtStateMap.get(dist) || "Kerala",
+        orbit_count: orbitsInDist.length,
+        student_count: eligibleStudents.length,
+        eligible_students: eligibleStudents,
+        leader: leaderInfo,
+      });
+    });
+
+    return records;
+  } catch (error) {
+    console.error("Error fetching district leadership data:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetches Constituency Leadership matrix (1 Leader per Malappuram Constituency)
+ * Highly optimized with in-memory constituency indexing
+ */
+export async function getConstituencyLeadershipData(): Promise<ConstituencyLeadershipRecord[]> {
+  try {
+    const supabase = await createClient();
+
+    // 1. Parallel fetch active Malappuram orbits, students, and constituency leaders
+    const [orbitsRes, studentsRes, constLeadersRes] = await Promise.all([
+      supabase
+        .from("orbits")
+        .select("*")
+        .eq("status", "active")
+        .ilike("district", "%malappuram%")
+        .not("constituency", "is", null)
+        .order("constituency", { ascending: true }),
+      supabase.from("students").select("*, college:colleges(*), orbit:orbits(*)").order("student_name", { ascending: true }),
+      supabase.from("constituency_leaders").select("*, student:students(*, college:colleges(*), orbit:orbits(*))"),
+    ]);
+
+    const mlpOrbits = (orbitsRes.data || []) as Orbit[];
+    const allStudents = (studentsRes.data || []) as Student[];
+    const constLeaders = (constLeadersRes.data || []) as any[];
+
+    // 2. Index active orbits by constituency
+    const constOrbitMap = new Map<string, Orbit[]>();
+
+    mlpOrbits.forEach((orb) => {
+      const constName = (orb.constituency || "").trim();
+      if (!constName) return;
+
+      if (!constOrbitMap.has(constName)) {
+        const constOrbitMapEntry: Orbit[] = [];
+        constOrbitMap.set(constName, constOrbitMapEntry);
+      }
+      constOrbitMap.get(constName)!.push(orb);
+    });
+
+    // 3. Index eligible students by constituency
+    const constStudentsMap = new Map<string, Student[]>();
+    constOrbitMap.forEach((_, cName) => {
+      constStudentsMap.set(cName, []);
+    });
+
+    allStudents.forEach((student) => {
+      const studentConst = student.orbit?.constituency?.trim();
+      if (studentConst && constStudentsMap.has(studentConst)) {
+        constStudentsMap.get(studentConst)!.push(student);
+      }
+    });
+
+    // 4. Index appointed constituency leaders by constituency
+    const constLeaderMap = new Map<string, any>();
+    constLeaders.forEach((cl) => {
+      if (cl.constituency) {
+        constLeaderMap.set(cl.constituency, cl);
+      }
+    });
+
+    // Fallback: If not found in table, check students with role === 'constituency_leader'
+    allStudents.forEach((s) => {
+      const sConst = s.orbit?.constituency?.trim();
+      if (s.role === "constituency_leader" && sConst && !constLeaderMap.has(sConst)) {
+        constLeaderMap.set(sConst, {
+          student_id: s.cicno,
+          constituency: sConst,
+          student: s,
+        });
+      }
+    });
+
+    // 5. Construct Constituency Leadership Records
+    const records: ConstituencyLeadershipRecord[] = [];
+    const sortedConstituencies = Array.from(constOrbitMap.keys()).sort((a, b) => a.localeCompare(b));
+
+    sortedConstituencies.forEach((cName) => {
+      const orbitsInConst = constOrbitMap.get(cName) || [];
+      const primaryOrbit = orbitsInConst[0];
+      const eligibleStudents = constStudentsMap.get(cName) || [];
+      const leaderRecord = constLeaderMap.get(cName);
+
+      let leaderInfo = null;
+      if (leaderRecord?.student) {
+        const s = leaderRecord.student;
+        leaderInfo = {
+          cicno: s.cicno,
+          student_name: s.student_name,
+          affno: s.affno || (s.college ? s.college.affno : null),
+          college_name: s.college ? s.college.name : null,
+          orbit_id: s.orbit_id || (s.orbit ? s.orbit.id : null),
+          orbit_name: s.orbit ? s.orbit.name : null,
+          class_name: s.class_name,
+          phone: s.phone || null,
+        };
+      }
+
+      records.push({
+        constituency: cName,
+        district: "Malappuram",
+        orbit_id: primaryOrbit ? primaryOrbit.id : "—",
+        orbit_name: primaryOrbit ? primaryOrbit.name : "—",
+        student_count: eligibleStudents.length,
+        eligible_students: eligibleStudents,
+        leader: leaderInfo,
+      });
+    });
+
+    return records;
+  } catch (error) {
+    console.error("Error fetching constituency leadership data:", error);
     return [];
   }
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Lock, Mail, ArrowLeft, Shield, AlertCircle, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -89,8 +90,15 @@ export default function LoginPage() {
         {/* Login Card */}
         <Card className="shadow-lg border-border bg-card">
           <CardHeader className="space-y-2 text-center pb-4">
-            <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mx-auto">
-              <Shield className="size-6" />
+            <div className="size-16 rounded-xl overflow-hidden bg-background border border-border/80 shadow-xs flex items-center justify-center mx-auto p-1.5">
+              <Image
+                src="/orbitlogo.png"
+                alt="Wafy Orbit Logo"
+                width={56}
+                height={56}
+                className="size-full object-contain"
+                priority
+              />
             </div>
             <CardTitle className="text-2xl font-serif">Wafy Orbit Institutional Login</CardTitle>
             <CardDescription className="text-xs leading-relaxed">

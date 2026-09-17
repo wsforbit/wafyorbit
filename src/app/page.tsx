@@ -72,7 +72,7 @@ export default async function HomePage() {
 
               {/* Main Headline */}
               <h1 className="text-4xl sm:text-6xl lg:text-7xl font-serif font-extrabold tracking-tight text-foreground leading-[1.1] text-balance">
-                Bridging Knowledge, Leadership & Institutional Orbits
+                "Rooted in Knowledge, Linked in Unity: Welcome to Wafy Orbit."
               </h1>
 
               {/* Subtitle Description */}
@@ -89,10 +89,10 @@ export default async function HomePage() {
                     <ArrowRight className="size-4" />
                   </Button>
                 </Link>
-                <Link href="/portal/admin">
+                <Link href="/auth/login">
                   <Button size="lg" variant="outline" className="h-12 px-6 text-base font-medium">
                     <ShieldCheck className="size-5 mr-1" />
-                    Admin Access
+                    Sign In
                   </Button>
                 </Link>
               </div>
@@ -191,7 +191,7 @@ export default async function HomePage() {
                   What is the Wafy Orbit System?
                 </h2>
                 <p className="text-muted-foreground leading-relaxed text-base">
-                  Wafy Orbit represents the specialized spheres of development inside the Wafy institutional ecosystem. Each Orbit focuses on specific academic disciplines, artistic excellence, social leadership, technological innovation, and scholarly growth.
+                  Wafy Orbit is an official student-led initiative established to connect, empower, and align Wafy scholars across their respective home regions. Functioning as a localized bridge between students, alumni, and the central institutional framework, Wafy Orbit channels academic energy and student leadership into regional engagement, community service, and public outreach.
                 </p>
                 <div className="space-y-4 pt-2">
                   <div className="flex items-start gap-3">
@@ -269,117 +269,6 @@ export default async function HomePage() {
                   </Button>
                 </Link>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* PORTAL ACCESS DECK */}
-        {/* ========================================================================= */}
-        <section className="py-16 md:py-24 bg-muted/20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-12">
-              <Badge variant="outline" className="font-mono text-xs uppercase">
-                System Redirection
-              </Badge>
-              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-foreground">
-                Dedicated Institutional Portals
-              </h2>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Access your designated workspace with Supabase role-level authentication.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              
-              {/* Card 1: Orbit Details (Public) */}
-              <Card className="flex flex-col justify-between hover:shadow-md transition-all duration-200 border-primary/30">
-                <CardHeader>
-                  <div className="size-10 rounded-md bg-primary/10 flex items-center justify-center text-primary mb-3">
-                    <Globe className="size-5" />
-                  </div>
-                  <CardTitle className="text-lg">Orbit Details</CardTitle>
-                  <CardDescription>
-                    Public exploration directory for orbits, students, colleges, and leaders.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Badge variant="secondary" className="mb-4">Public Access</Badge>
-                  <Link href="/orbit-details" className="block">
-                    <Button variant="outline" className="w-full justify-between group">
-                      <span>Open Hub</span>
-                      <ArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              {/* Card 2: Admin Portal */}
-              <Card className="flex flex-col justify-between hover:shadow-md transition-all duration-200">
-                <CardHeader>
-                  <div className="size-10 rounded-md bg-muted flex items-center justify-center text-foreground mb-3">
-                    <ShieldCheck className="size-5" />
-                  </div>
-                  <CardTitle className="text-lg">Admin Portal</CardTitle>
-                  <CardDescription>
-                    Central administration, bulk data management, and institutional overview.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Badge variant="outline" className="mb-4">Supabase Auth</Badge>
-                  <Link href="/portal/admin" className="block">
-                    <Button variant="default" className="w-full justify-between group">
-                      <span>Admin Login</span>
-                      <ArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              {/* Card 3: Orbit Portal */}
-              <Card className="flex flex-col justify-between hover:shadow-md transition-all duration-200">
-                <CardHeader>
-                  <div className="size-10 rounded-md bg-muted flex items-center justify-center text-foreground mb-3">
-                    <Compass className="size-5" />
-                  </div>
-                  <CardTitle className="text-lg">Orbit Portal</CardTitle>
-                  <CardDescription>
-                    Designated coordinator console for managing orbit events and members.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Badge variant="outline" className="mb-4">Coordinator Auth</Badge>
-                  <Link href="/portal/orbit" className="block">
-                    <Button variant="secondary" className="w-full justify-between group">
-                      <span>Coordinator Login</span>
-                      <ArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              {/* Card 4: College Portal */}
-              <Card className="flex flex-col justify-between hover:shadow-md transition-all duration-200">
-                <CardHeader>
-                  <div className="size-10 rounded-md bg-muted flex items-center justify-center text-foreground mb-3">
-                    <School className="size-5" />
-                  </div>
-                  <CardTitle className="text-lg">College Portal</CardTitle>
-                  <CardDescription>
-                    Campus authority portal for student admissions and orbit allocations.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Badge variant="outline" className="mb-4">Collegiate Auth</Badge>
-                  <Link href="/portal/college" className="block">
-                    <Button variant="secondary" className="w-full justify-between group">
-                      <span>College Login</span>
-                      <ArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
             </div>
           </div>
         </section>

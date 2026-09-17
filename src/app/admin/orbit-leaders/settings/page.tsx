@@ -3,13 +3,21 @@ import { ArrowLeft, Award, Settings } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
-import { getOrbitLeadershipData } from "@/lib/supabase/data";
+import {
+  getOrbitLeadershipData,
+  getDistrictLeadershipData,
+  getConstituencyLeadershipData,
+} from "@/lib/supabase/data";
 import { OrbitLeadersSettingsClient } from "@/components/admin/orbit-leaders-settings-client";
 
 export const revalidate = 0;
 
 export default async function AdminOrbitLeadersSettingsPage() {
-  const leadershipRecords = await getOrbitLeadershipData();
+  const [orbitRecords, districtRecords, constituencyRecords] = await Promise.all([
+    getOrbitLeadershipData(),
+    getDistrictLeadershipData(),
+    getConstituencyLeadershipData(),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background selection:bg-primary/20 selection:text-foreground">
@@ -26,7 +34,7 @@ export default async function AdminOrbitLeadersSettingsPage() {
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-mono mb-2"
               >
                 <ArrowLeft className="size-3.5" />
-                Back to Leaders Directory
+                Back to Leadership Directory
               </Link>
               <div className="flex items-center gap-2">
                 <Badge variant="default" className="text-xs font-mono uppercase">
@@ -35,16 +43,20 @@ export default async function AdminOrbitLeadersSettingsPage() {
                 <span className="text-xs text-muted-foreground font-mono">Leadership Appointments</span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-serif font-bold text-foreground mt-1">
-                Orbit Leadership Delegation Matrix
+                Leadership Appointment Matrix
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Appoint Orbit Leaders and Assistant Leaders from student cohorts with automatic college affiliations.
+                Designate and manage student coordinators across Orbit Leaders, District Leaders, and Malappuram Constituency Leaders.
               </p>
             </div>
           </div>
 
-          {/* Interactive Leadership Settings Matrix Component */}
-          <OrbitLeadersSettingsClient initialRecords={leadershipRecords} />
+          {/* Interactive Multi-Tier Leadership Settings Component */}
+          <OrbitLeadersSettingsClient
+            initialOrbitRecords={orbitRecords}
+            initialDistrictRecords={districtRecords}
+            initialConstituencyRecords={constituencyRecords}
+          />
 
         </div>
       </main>
