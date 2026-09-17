@@ -160,6 +160,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" className="h-full scroll-smooth">
+    <meta name="google-site-verification" content="MpBGQlMKueFSZrBqMP8QKv2JsvSMxBQ-i0jhjLZI1VI" />
       <head>
         <script
           type="application/ld+json"
