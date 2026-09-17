@@ -160,8 +160,8 @@ export default function RootLayout({
 
   return (
     <html lang="en" className="h-full scroll-smooth">
-    <meta name="google-site-verification" content="MpBGQlMKueFSZrBqMP8QKv2JsvSMxBQ-i0jhjLZI1VI" />
       <head>
+        <meta name="google-site-verification" content="MpBGQlMKueFSZrBqMP8QKv2JsvSMxBQ-i0jhjLZI1VI" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
