@@ -44,7 +44,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/orbit-details/students" className="hover:text-foreground transition-colors">
-                  Student Directory
+                  Find Your Orbit
                 </Link>
               </li>
               <li>

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, School, MapPin, Mail, Info, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, School, MapPin, Info, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { College } from "@/types/database.types";
 
-type SortField = "affno" | "name" | "short_name" | "place" | "email";
+type SortField = "affno" | "name" | "short_name" | "place";
 
 export function CollegeTableClient({ initialColleges }: { initialColleges: College[] }) {
   const [search, setSearch] = useState("");
@@ -72,10 +72,6 @@ export function CollegeTableClient({ initialColleges }: { initialColleges: Colle
           valA = a.place || "";
           valB = b.place || "";
           break;
-        case "email":
-          valA = a.email || "";
-          valB = b.email || "";
-          break;
       }
 
       const comparison = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: "base" });
@@ -101,7 +97,7 @@ export function CollegeTableClient({ initialColleges }: { initialColleges: Colle
         </div>
       </div>
 
-      {/* College Table */}
+      {/* College Table (Without Email for Data Privacy) */}
       {processedColleges.length > 0 ? (
         <Table className="bg-card">
           <TableHeader>
@@ -118,7 +114,7 @@ export function CollegeTableClient({ initialColleges }: { initialColleges: Colle
                   {renderSortIcon("name")}
                 </div>
               </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none w-28" onClick={() => handleSort("short_name")}>
+              <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors select-none w-32" onClick={() => handleSort("short_name")}>
                 <div className="flex items-center gap-1">
                   <span>Short Code</span>
                   {renderSortIcon("short_name")}
@@ -128,12 +124,6 @@ export function CollegeTableClient({ initialColleges }: { initialColleges: Colle
                 <div className="flex items-center gap-1">
                   <span>Place / District</span>
                   {renderSortIcon("place")}
-                </div>
-              </TableHead>
-              <TableHead className="hidden md:table-cell cursor-pointer hover:bg-muted/50 transition-colors select-none" onClick={() => handleSort("email")}>
-                <div className="flex items-center gap-1">
-                  <span>Contact Email</span>
-                  {renderSortIcon("email")}
                 </div>
               </TableHead>
             </TableRow>
@@ -162,16 +152,6 @@ export function CollegeTableClient({ initialColleges }: { initialColleges: Colle
                     <span className="text-foreground font-medium">{college.place}</span>
                     {college.district && college.district !== college.place && (
                       <span> ({college.district})</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-xs text-muted-foreground font-mono">
-                    {college.email ? (
-                      <div className="flex items-center gap-1">
-                        <Mail className="size-3 text-muted-foreground" />
-                        <span>{college.email}</span>
-                      </div>
-                    ) : (
-                      <span>—</span>
                     )}
                   </TableCell>
                 </TableRow>

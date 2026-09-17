@@ -23,13 +23,13 @@ export default async function OrbitDetailsPage() {
       badge: "Institutional Orbits",
     },
     {
-      title: "2. Student List",
+      title: "2. Find Your Orbit",
       href: "/orbit-details/students",
       icon: GraduationCap,
       count: metrics.studentCount,
-      countLabel: "Registered Students",
-      description: "Searchable directory of enrolled scholars categorized by admission number, assigned orbit, batch, and college.",
-      badge: "Student Roster",
+      countLabel: "Active Scholars",
+      description: "Secure student lookup portal to check your designated Orbit domain, affiliated campus, and academic records by CIC Number.",
+      badge: "Student Orbit Lookup",
     },
     {
       title: "3. College List",

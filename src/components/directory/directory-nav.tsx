@@ -9,7 +9,7 @@ export function DirectoryNav() {
 
   const tabs = [
     { href: "/orbit-details/orbits", label: "1. Orbit List", icon: Layers },
-    { href: "/orbit-details/students", label: "2. Student List", icon: GraduationCap },
+    { href: "/orbit-details/students", label: "2. Find Your Orbit", icon: GraduationCap },
     { href: "/orbit-details/colleges", label: "3. College List", icon: School },
     { href: "/orbit-details/leaders", label: "4. Orbit Leaders", icon: Award },
   ];

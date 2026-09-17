@@ -248,8 +248,8 @@ export default async function HomePage() {
                   </Link>
                   <Link href="/orbit-details/students" className="p-3 rounded-md bg-muted/40 hover:bg-muted transition-colors border border-border/50 text-left block">
                     <GraduationCap className="size-4 text-primary mb-1.5" />
-                    <div className="text-xs font-semibold text-foreground">2. Student List</div>
-                    <div className="text-[11px] text-muted-foreground">Enrolled scholars</div>
+                    <div className="text-xs font-semibold text-foreground">2. Find Your Orbit</div>
+                    <div className="text-[11px] text-muted-foreground">Look up your orbit</div>
                   </Link>
                   <Link href="/orbit-details/colleges" className="p-3 rounded-md bg-muted/40 hover:bg-muted transition-colors border border-border/50 text-left block">
                     <School className="size-4 text-primary mb-1.5" />
