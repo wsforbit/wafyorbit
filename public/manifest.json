@@ -1,0 +1,23 @@
+{
+  "name": "Wafy Orbit Portal",
+  "short_name": "Wafy Orbit",
+  "description": "Official institutional portal for Wafy students, academic orbits, affiliated colleges, district leaders, and constituency delegations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/orbitlogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/orbitlogo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
