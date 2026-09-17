@@ -85,11 +85,11 @@ export function FindOrbitClient() {
               <Search className="absolute left-3.5 top-3 size-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Enter CIC Number (e.g. CIC2025001)..."
+                placeholder="Enter CIC Number (e.g. 16828 or CIC16828)..."
                 value={cicnoInput}
                 onChange={(e) => setCicnoInput(e.target.value)}
                 disabled={isPending}
-                className="pl-10 pr-9 h-11 text-sm font-mono uppercase tracking-wider"
+                className="pl-10 pr-9 h-11 text-sm font-mono tracking-wider"
                 autoFocus
               />
               {cicnoInput && (
@@ -125,7 +125,7 @@ export function FindOrbitClient() {
           {/* Privacy Disclaimer */}
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground font-mono pt-1">
             <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Data Privacy Protected • Phone numbers & personal contacts are kept strictly private</span>
+            <span>Data Privacy Protected • Personal contacts & phone numbers are never displayed</span>
           </div>
         </CardContent>
       </Card>
@@ -141,8 +141,8 @@ export function FindOrbitClient() {
                 {errorMessage}
               </p>
               <div className="text-[11px] text-muted-foreground pt-2 space-y-1">
-                <p>• Make sure you entered your exact CIC Number (e.g. <code className="font-mono font-semibold text-foreground">CIC2025001</code>).</p>
-                <p>• If you recently registered or transferred, your college may still be finalizing your enrollment batch.</p>
+                <p>• Make sure you entered your official CIC Number (e.g. <code className="font-mono font-semibold text-foreground">16828</code>).</p>
+                <p>• If your admission was recently completed, check with your college coordinator to confirm your batch enrollment.</p>
               </div>
             </div>
           </div>
