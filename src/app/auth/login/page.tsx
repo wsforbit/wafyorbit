@@ -101,9 +101,6 @@ export default function LoginPage() {
               />
             </div>
             <CardTitle className="text-2xl font-serif">Wafy Orbit Institutional Login</CardTitle>
-            <CardDescription className="text-xs leading-relaxed">
-              Authorized access for Central Admin, Orbit Leaders, and College Administrators.
-            </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
@@ -169,16 +166,6 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
-
-          <CardFooter className="flex flex-col gap-2 text-center text-xs text-muted-foreground border-t border-border pt-4">
-            <div className="flex items-center gap-1.5 font-mono">
-              <Badge variant="secondary" className="text-[10px]">Role-Aware Routing</Badge>
-              <span>Admin, Orbit Leader & College Console</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground/80">
-              Accounts for Orbit Leaders are generated via the Admin Orbit Settings page.
-            </p>
-          </CardFooter>
         </Card>
       </div>
     </div>

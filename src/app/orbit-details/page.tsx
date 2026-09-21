@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, GraduationCap, School, Award, ArrowRight, Database } from "lucide-react";
+import { Layers, GraduationCap, School, Award, ArrowRight } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -18,16 +18,16 @@ export default async function OrbitDetailsPage() {
       href: "/orbit-details/orbits",
       icon: Layers,
       count: metrics.orbitCount,
-      countLabel: "Active Orbits",
+      countLabel: "Orbits",
       description: "Comprehensive registry of academic, research, creative, and technological orbits across the Wafy ecosystem.",
-      badge: "Institutional Orbits",
+      badge: "Orbits",
     },
     {
       title: "2. Find Your Orbit",
       href: "/orbit-details/students",
       icon: GraduationCap,
       count: metrics.studentCount,
-      countLabel: "Active Scholars",
+      countLabel: "Scholars",
       description: "Secure student lookup portal to check your designated Orbit domain, affiliated campus, and academic records by CIC Number.",
       badge: "Student Orbit Lookup",
     },
@@ -64,15 +64,12 @@ export default async function OrbitDetailsPage() {
               <Badge variant="outline" className="font-mono text-xs uppercase">
                 Public Database
               </Badge>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Database className="size-3 text-primary" /> Live Supabase Synchronization
-              </span>
             </div>
             <h1 className="text-3xl sm:text-5xl font-serif font-bold tracking-tight text-foreground">
               Orbit Details & Public Directory
             </h1>
             <p className="text-muted-foreground text-base sm:text-lg leading-relaxed font-sans">
-              Welcome to the open institutional directory of Wafy Orbit. Select a section below to browse orbits, search student cohorts, inspect affiliated colleges, or review leadership appointments.
+              Welcome to the directory of Wafy Orbit. Select a section below to browse orbits, find your orbit, inspect affiliated colleges, or review leadership appointments.
             </p>
           </div>
 
@@ -102,7 +99,7 @@ export default async function OrbitDetailsPage() {
                             <strong className="text-foreground font-sans font-semibold text-sm">{dir.count}</strong> {dir.countLabel}
                           </span>
                         ) : (
-                          <span>Designated Representatives</span>
+                          <span>Designated Leaders</span>
                         )}
                       </div>
                       <Link href={dir.href}>

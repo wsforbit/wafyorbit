@@ -64,7 +64,7 @@ export function Footer() {
 
         {/* Footer Bottom Bar */}
         <div className="mt-10 border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground gap-4">
-          <p>© {new Date().getFullYear()} Wafy Institution. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Wafy Orbit. All rights reserved.</p>
           <div className="flex items-center gap-3">
             <Link
               href="/auth/login"
@@ -73,8 +73,6 @@ export function Footer() {
               <Lock className="size-3" />
               <span>Portal Sign In</span>
             </Link>
-            <span className="text-border">•</span>
-            <span className="font-mono text-[11px]">Wafy Institutional Sphere</span>
           </div>
         </div>
       </div>

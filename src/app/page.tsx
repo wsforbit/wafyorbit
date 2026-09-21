@@ -64,11 +64,6 @@ export default async function HomePage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center text-center space-y-8 max-w-4xl mx-auto">
               
-              {/* Badge Indicator */}
-              <Badge variant="secondary" className="px-3.5 py-1 text-xs tracking-wide uppercase font-mono gap-1.5 border border-border">
-                <Sparkles className="size-3.5 text-primary" />
-                Official Wafy Orbit Platform
-              </Badge>
 
               {/* Main Headline */}
               <h1 className="text-4xl sm:text-6xl lg:text-7xl font-serif font-extrabold tracking-tight text-foreground leading-[1.1] text-balance">
@@ -168,7 +163,7 @@ export default async function HomePage() {
                     {metrics.studentCount.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Scholars across all stages and orbits
+                    Scholars across all orbits
                   </p>
                 </CardContent>
               </Card>
@@ -244,22 +239,22 @@ export default async function HomePage() {
                   <Link href="/orbit-details/orbits" className="p-3 rounded-md bg-muted/40 hover:bg-muted transition-colors border border-border/50 text-left block">
                     <Layers className="size-4 text-primary mb-1.5" />
                     <div className="text-xs font-semibold text-foreground">1. Orbit List</div>
-                    <div className="text-[11px] text-muted-foreground">Browse all domains</div>
+                    <div className="text-[11px] text-muted-foreground">Browse all orbits</div>
                   </Link>
                   <Link href="/orbit-details/students" className="p-3 rounded-md bg-muted/40 hover:bg-muted transition-colors border border-border/50 text-left block">
                     <GraduationCap className="size-4 text-primary mb-1.5" />
-                    <div className="text-xs font-semibold text-foreground">2. Find Your Orbit</div>
+                    <div className="text-xs font-semibold text-foreground">2. Find My Orbit</div>
                     <div className="text-[11px] text-muted-foreground">Look up your orbit</div>
                   </Link>
                   <Link href="/orbit-details/colleges" className="p-3 rounded-md bg-muted/40 hover:bg-muted transition-colors border border-border/50 text-left block">
                     <School className="size-4 text-primary mb-1.5" />
                     <div className="text-xs font-semibold text-foreground">3. College List</div>
-                    <div className="text-[11px] text-muted-foreground">Affiliated campuses</div>
+                    <div className="text-[11px] text-muted-foreground">Affiliated colleges</div>
                   </Link>
                   <Link href="/orbit-details/leaders" className="p-3 rounded-md bg-muted/40 hover:bg-muted transition-colors border border-border/50 text-left block">
                     <Award className="size-4 text-primary mb-1.5" />
                     <div className="text-xs font-semibold text-foreground">4. Orbit Leaders</div>
-                    <div className="text-[11px] text-muted-foreground">Appointed councils</div>
+                    <div className="text-[11px] text-muted-foreground">Appointed leaders</div>
                   </Link>
                 </div>
 

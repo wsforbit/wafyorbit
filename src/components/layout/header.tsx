@@ -144,9 +144,6 @@ export function Header() {
             <span className="font-serif font-bold text-lg leading-tight tracking-tight text-foreground">
               Wafy Orbit
             </span>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground">
-              Institutional Sphere
-            </span>
           </div>
         </Link>
 
