@@ -171,3 +171,106 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ========================================================================= */
+/* MODERN ANIMATION & ORBITAL PHYSICS KEYFRAMES                              */
+/* ========================================================================= */
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-spin-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes orbit-pulse-soft {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 16px rgba(245, 158, 11, 0.25));
+  }
+  50% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 28px rgba(245, 158, 11, 0.45));
+  }
+}
+
+@keyframes orbit-ripple-wave {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(1deg);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(14px) rotate(-1deg);
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-150%);
+  }
+  100% {
+    transform: translateX(150%);
+  }
+}
+
+.animate-orbit-spin {
+  animation: orbit-spin 14s linear infinite;
+}
+
+.animate-orbit-spin-slow {
+  animation: orbit-spin 22s linear infinite;
+}
+
+.animate-orbit-spin-reverse {
+  animation: orbit-spin-reverse 16s linear infinite;
+}
+
+.animate-orbit-pulse {
+  animation: orbit-pulse-soft 2.4s ease-in-out infinite;
+}
+
+.animate-orbit-ripple {
+  animation: orbit-ripple-wave 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 9s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer-sweep 2.8s ease-in-out infinite;
+}
+
