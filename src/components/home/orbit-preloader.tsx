@@ -7,29 +7,42 @@ interface OrbitPreloaderProps {
   onComplete?: () => void;
 }
 
+// Global timestamp tracking so switching from loading.tsx to page.tsx is seamless
+let globalPreloaderStart: number | null = null;
+
 export function OrbitPreloader({ onComplete }: OrbitPreloaderProps) {
   const [progress, setProgress] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [isMounted, setIsMounted] = useState(true);
 
   useEffect(() => {
-    // Start progress bar animation immediately
+    const now = Date.now();
+    // If not started yet or previous session ended, start clock
+    if (!globalPreloaderStart || now - globalPreloaderStart > 4500) {
+      globalPreloaderStart = now;
+    }
+
+    const elapsed = now - globalPreloaderStart;
+    const remainingTime = Math.max(200, 3000 - elapsed);
+
+    // Start progress bar animation
     const startTimer = setTimeout(() => {
       setProgress(100);
-    }, 40);
+    }, 30);
 
-    // After 3 seconds (3000ms), initiate smooth exit reveal
+    // After 3 seconds (3000ms from start), initiate smooth exit reveal
     const fadeTimer = setTimeout(() => {
       setIsFadingOut(true);
       if (onComplete) {
         onComplete();
       }
-    }, 3000);
+    }, remainingTime);
 
     // After fade-out transition finishes (700ms), unmount preloader completely
     const unmountTimer = setTimeout(() => {
       setIsMounted(false);
-    }, 3700);
+      globalPreloaderStart = null;
+    }, remainingTime + 700);
 
     return () => {
       clearTimeout(startTimer);
@@ -102,8 +115,11 @@ export function OrbitPreloader({ onComplete }: OrbitPreloaderProps) {
         {/* 3-Second Precision Progress Indicator */}
         <div className="w-52 sm:w-60 h-1 bg-slate-100 rounded-full overflow-hidden mt-3 relative border border-slate-200/40">
           <div
-            className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 rounded-full transition-all duration-[3000ms] ease-out shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-            style={{ width: `${progress}%` }}
+            className="h-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+            style={{
+              width: `${progress}%`,
+              transition: `width 3000ms cubic-bezier(0.16, 1, 0.3, 1)`,
+            }}
           />
         </div>
       </div>
