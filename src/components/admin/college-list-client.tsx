@@ -15,12 +15,15 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Send,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { CollegeMailMergeModal } from "@/components/admin/college-mail-merge-modal";
 import type { College } from "@/types/database.types";
 
 interface Props {
@@ -37,6 +40,10 @@ export function CollegeListClient({ initialColleges }: Props) {
 
   // Modal State for viewing college full details
   const [selectedCollegeForModal, setSelectedCollegeForModal] = useState<College | null>(null);
+
+  // Mail Merge Modal State
+  const [isMailMergeOpen, setIsMailMergeOpen] = useState<boolean>(false);
+  const [mailMergePreselectedAffnos, setMailMergePreselectedAffnos] = useState<string[]>([]);
 
   // Extract unique Districts dynamically
   const uniqueDistricts = useMemo(() => {
@@ -190,6 +197,22 @@ export function CollegeListClient({ initialColleges }: Props) {
                 </Button>
               )}
 
+              {/* Bulk Mail Merge Action Button */}
+              <Button
+                size="sm"
+                onClick={() => {
+                  setMailMergePreselectedAffnos([]);
+                  setIsMailMergeOpen(true);
+                }}
+                className="h-9 text-xs gap-2 font-bold shadow-xs shrink-0 bg-primary text-primary-foreground hover:opacity-95"
+              >
+                <Mail className="size-3.5" />
+                <span>Bulk Mail Merge</span>
+                <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
+                  {initialColleges.filter((c) => Boolean(c.email)).length}
+                </Badge>
+              </Button>
+
             </div>
 
             {/* Results Count Bar */}
@@ -321,17 +344,37 @@ export function CollegeListClient({ initialColleges }: Props) {
                     </div>
                   </TableCell>
 
-                  {/* View Details Action Trigger */}
+                  {/* View Details and Mail Merge Action Triggers */}
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedCollegeForModal(college)}
-                      className="h-8 gap-1 text-xs hover:bg-secondary text-primary"
-                    >
-                      <Eye className="size-3.5" />
-                      <span>View</span>
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      {college.email && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const targetAff = college.affno || college.id || "";
+                            if (targetAff) {
+                              setMailMergePreselectedAffnos([targetAff]);
+                              setIsMailMergeOpen(true);
+                            }
+                          }}
+                          className="h-8 gap-1 text-xs hover:bg-secondary text-muted-foreground hover:text-primary"
+                          title="Draft or send personalized email"
+                        >
+                          <Mail className="size-3.5" />
+                          <span>Email</span>
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedCollegeForModal(college)}
+                        className="h-8 gap-1 text-xs hover:bg-secondary text-primary"
+                      >
+                        <Eye className="size-3.5" />
+                        <span>View</span>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -473,6 +516,16 @@ export function CollegeListClient({ initialColleges }: Props) {
           </Card>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* BULK MAIL MERGE MODAL CONSOLE */}
+      {/* ========================================================================= */}
+      <CollegeMailMergeModal
+        colleges={initialColleges}
+        isOpen={isMailMergeOpen}
+        onClose={() => setIsMailMergeOpen(false)}
+        preSelectedAffnos={mailMergePreselectedAffnos}
+      />
 
     </div>
   );

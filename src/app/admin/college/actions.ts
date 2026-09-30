@@ -304,3 +304,192 @@ export async function deleteCollegeAction(affno: string) {
     return { success: false, error: msg };
   }
 }
+
+export interface BulkEmailMessage {
+  affno: string;
+  collegeName: string;
+  toEmail: string;
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+}
+
+export interface SendBulkEmailsOptions {
+  messages: BulkEmailMessage[];
+  senderName?: string;
+  senderEmail?: string;
+  resendApiKey?: string;
+}
+
+export interface SendEmailResult {
+  affno: string;
+  collegeName: string;
+  toEmail: string;
+  status: "sent" | "failed" | "simulated";
+  error?: string;
+  resendId?: string;
+}
+
+export interface SendBulkEmailsResponse {
+  success: boolean;
+  total: number;
+  sent: number;
+  failed: number;
+  simulated: number;
+  results: SendEmailResult[];
+  message: string;
+}
+
+/**
+ * Sends mail-merged bulk emails to colleges via Resend API or direct simulation
+ */
+export async function sendBulkCollegeEmailsAction(
+  options: SendBulkEmailsOptions
+): Promise<SendBulkEmailsResponse> {
+  const { messages, senderName = "Wafy Orbit Administration", senderEmail, resendApiKey } = options;
+
+  if (!messages || messages.length === 0) {
+    return {
+      success: false,
+      total: 0,
+      sent: 0,
+      failed: 0,
+      simulated: 0,
+      results: [],
+      message: "No email messages provided for dispatch.",
+    };
+  }
+
+  const apiKey = resendApiKey?.trim() || process.env.RESEND_API_KEY || "";
+  const fromAddress = senderEmail?.trim() || process.env.RESEND_FROM_EMAIL || "Wafy Orbit <onboarding@resend.dev>";
+
+  const results: SendEmailResult[] = [];
+  let sentCount = 0;
+  let failedCount = 0;
+  let simulatedCount = 0;
+
+  // If no Resend API key is configured, perform validated simulation
+  if (!apiKey) {
+    for (const msg of messages) {
+      if (!msg.toEmail || !msg.toEmail.includes("@")) {
+        results.push({
+          affno: msg.affno,
+          collegeName: msg.collegeName,
+          toEmail: msg.toEmail,
+          status: "failed",
+          error: "Invalid or missing email address in registry.",
+        });
+        failedCount++;
+      } else {
+        results.push({
+          affno: msg.affno,
+          collegeName: msg.collegeName,
+          toEmail: msg.toEmail,
+          status: "simulated",
+          error: undefined,
+        });
+        simulatedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      total: messages.length,
+      sent: 0,
+      failed: failedCount,
+      simulated: simulatedCount,
+      results,
+      message: `Verified and prepared ${simulatedCount} personalized emails. (Add RESEND_API_KEY to your .env.local to send live emails directly)`,
+    };
+  }
+
+  // Live dispatch via Resend API
+  for (const msg of messages) {
+    if (!msg.toEmail || !msg.toEmail.includes("@")) {
+      results.push({
+        affno: msg.affno,
+        collegeName: msg.collegeName,
+        toEmail: msg.toEmail,
+        status: "failed",
+        error: "Missing or invalid recipient email address.",
+      });
+      failedCount++;
+      continue;
+    }
+
+    try {
+      const payload: Record<string, unknown> = {
+        from: fromAddress.includes("<") ? fromAddress : `${senderName} <${fromAddress}>`,
+        to: [msg.toEmail],
+        subject: msg.subject,
+        text: msg.bodyText,
+      };
+
+      if (msg.bodyHtml) {
+        payload.html = msg.bodyHtml;
+      } else {
+        // Convert line breaks to HTML paragraphs/breaks
+        payload.html = `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            ${msg.bodyText
+              .split("\n\n")
+              .map((p) => `<p style="margin-bottom: 12px;">${p.replace(/\n/g, "<br/>")}</p>`)
+              .join("")}
+          </div>
+        `;
+      }
+
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const resData = await res.json();
+
+      if (res.ok && resData.id) {
+        results.push({
+          affno: msg.affno,
+          collegeName: msg.collegeName,
+          toEmail: msg.toEmail,
+          status: "sent",
+          resendId: resData.id,
+        });
+        sentCount++;
+      } else {
+        const errorMsg = resData.message || (typeof resData.error === "string" ? resData.error : "Failed to send email.");
+        results.push({
+          affno: msg.affno,
+          collegeName: msg.collegeName,
+          toEmail: msg.toEmail,
+          status: "failed",
+          error: errorMsg,
+        });
+        failedCount++;
+      }
+    } catch (err: unknown) {
+      const errText = err instanceof Error ? err.message : "Network error during email dispatch.";
+      results.push({
+        affno: msg.affno,
+        collegeName: msg.collegeName,
+        toEmail: msg.toEmail,
+        status: "failed",
+        error: errText,
+      });
+      failedCount++;
+    }
+  }
+
+  return {
+    success: sentCount > 0 || simulatedCount > 0,
+    total: messages.length,
+    sent: sentCount,
+    failed: failedCount,
+    simulated: simulatedCount,
+    results,
+    message: `Batch complete: ${sentCount} sent successfully${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
+  };
+}
