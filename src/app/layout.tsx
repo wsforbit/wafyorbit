@@ -27,7 +27,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-const siteUrl = "https://wafyorbit.vercel.app";
+const siteUrl = "https://orbit.wafycic.com";
 const siteTitle = "Wafy Orbit | Official Institutional & Academic Sphere Portal";
 const siteDescription =
   "Official institutional digital ecosystem connecting academic orbits, affiliated colleges, district leaders, constituency delegations, and enrolled scholars under the Wafy Institution.";

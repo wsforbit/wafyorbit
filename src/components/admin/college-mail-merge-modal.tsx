@@ -71,7 +71,7 @@ INSTITUTIONAL LOGIN CREDENTIALS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • Campus Affiliation No: {{affno}}
 • Campus Short Name: {{short_name}}
-• Portal Login URL: https://wafyorbit.vercel.app/auth/login
+• Portal Login URL: https://orbit.wafycic.com/auth/login
 • Authorized User ID / Email: {{portal_email}}
 • Default Portal Password: {{portal_password}}
 • Current Registered Scholars: {{student_count}}
@@ -82,7 +82,7 @@ IMMEDIATE ACTION ITEMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1. Login to the portal using the credentials provided above.
 2. Review your campus scholar enrollment roster.
-3. Access the 'Update Student Orbit Assignments' console (https://wafyorbit.vercel.app/college/update-orbit) to assign unallocated scholars to their respective regional Orbits.
+3. Access the 'Update Student Orbit Assignments' console (https://orbit.wafycic.com/college/update-orbit) to assign unallocated scholars to their respective regional Orbits.
 4. Ensure all Thamheediyya & Aliya batch records are accurately verified.
 
 For technical assistance or institutional inquiries, please reach out to central administration.
@@ -90,7 +90,7 @@ For technical assistance or institutional inquiries, please reach out to central
 Warm regards,
 Central Administration
 Wafy Orbit Governance System
-Official Portal: https://wafyorbit.vercel.app`,
+Official Portal: https://orbit.wafycic.com`,
   },
   {
     id: "orbit_allocation_notice",
@@ -104,13 +104,13 @@ This is a scheduled notification from the Wafy Orbit Directorate regarding the r
 Currently, your institution has {{student_count}} registered scholars in the central registry. Please verify that each scholar from your campus is accurately mapped to their home regional Orbit.
 
 Direct Link for Orbit Management:
-https://wafyorbit.vercel.app/college/update-orbit
+https://orbit.wafycic.com/college/update-orbit
 
 Please complete this verification at your earliest convenience to facilitate central academic coordination.
 
 Sincerely,
 Wafy Orbit Central Committee
-https://wafyorbit.vercel.app`,
+https://orbit.wafycic.com`,
   },
   {
     id: "general_circular",
@@ -139,7 +139,7 @@ Please ensure all department coordinators and students are informed of the lates
 Warm regards,
 General Secretary
 Coordination of Islamic Colleges (CIC) - Wafy Orbit Directorate
-https://wafyorbit.vercel.app`,
+https://orbit.wafycic.com`,
   },
   {
     id: "custom",
@@ -153,7 +153,8 @@ Please write your message here.
 You can include dynamic tags such as {{name}}, {{affno}}, {{place}}, {{district}}, {{student_count}}, and {{portal_email}}.
 
 Warm regards,
-Wafy Orbit Administration`,
+Wafy Orbit Administration
+https://orbit.wafycic.com`,
   },
 ];
 
@@ -190,7 +191,12 @@ export function CollegeMailMergeModal({
   // Sender Config
   const [senderName, setSenderName] = useState("Wafy Orbit Administration");
   const [senderEmail, setSenderEmail] = useState("");
-  const [resendApiKey, setResendApiKey] = useState("");
+
+  // SMTP (Gmail) Credentials
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
+  const [smtpPort, setSmtpPort] = useState("465");
 
   // Search & Filter in Recipients Tab
   const [recipientSearch, setRecipientSearch] = useState("");
@@ -250,7 +256,7 @@ export function CollegeMailMergeModal({
       .replace(/{{leader_count}}/g, leaderCount)
       .replace(/{{portal_email}}/g, portalEmail)
       .replace(/{{portal_password}}/g, portalPassword)
-      .replace(/{{portal_url}}/g, "https://wafyorbit.vercel.app/auth/login");
+      .replace(/{{portal_url}}/g, "https://orbit.wafycic.com/auth/login");
   };
 
   // List of selected colleges
@@ -375,8 +381,15 @@ export function CollegeMailMergeModal({
       const res = await sendBulkCollegeEmailsAction({
         messages: preparedMessages,
         senderName,
-        senderEmail: senderEmail || undefined,
-        resendApiKey: resendApiKey || undefined,
+        senderEmail: senderEmail || smtpUser || undefined,
+        smtp: smtpUser
+          ? {
+              user: smtpUser,
+              pass: smtpPass,
+              host: smtpHost,
+              port: Number(smtpPort) || 465,
+            }
+          : undefined,
       });
 
       setDispatchResults(res.results);
@@ -628,17 +641,32 @@ export function CollegeMailMergeModal({
                 />
               </div>
 
-              {/* Sender Details Collapsible Config */}
-              <div className="p-3 rounded-xl border border-border bg-card/60 space-y-3">
-                <div className="text-xs font-serif font-bold text-foreground flex items-center gap-1.5">
-                  <Settings2 className="size-3.5 text-primary" />
-                  <span>Sender & Delivery Configuration (Optional)</span>
+              {/* Sender Details & Gmail / SMTP Config */}
+              <div className="p-4 rounded-xl border border-border bg-card/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="text-xs font-serif font-bold text-foreground flex items-center gap-1.5">
+                    <Settings2 className="size-3.5 text-primary" />
+                    <span>Gmail & SMTP Email Sender Configuration</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-mono text-primary border-primary/30 w-fit">
+                    ⚡ Direct Gmail SMTP Delivery (No DNS Verification)
+                  </Badge>
+                </div>
+
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs space-y-1">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-primary" />
+                    <span>Send directly from your Gmail or Google Workspace Account</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Enter your Gmail address and 16-character <strong>Google App Password</strong> below or in your <code>.env.local</code> (as <code>SMTP_USER</code> and <code>SMTP_PASS</code>). <em>Spaces in the App Password are automatically formatted.</em>
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[11px] font-mono text-muted-foreground block mb-1">
-                      Sender Name
+                    <label className="text-[11px] font-mono font-semibold text-foreground block mb-1">
+                      Sender Display Name
                     </label>
                     <Input
                       placeholder="e.g. Wafy Orbit Administration"
@@ -648,25 +676,28 @@ export function CollegeMailMergeModal({
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-mono text-muted-foreground block mb-1">
-                      Sender Email (From)
+                    <label className="text-[11px] font-mono font-semibold text-foreground block mb-1">
+                      Gmail / Email Address *
                     </label>
                     <Input
-                      placeholder="e.g. orbit@wafy.edu"
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                      className="h-8 text-xs"
+                      placeholder="yourname@gmail.com"
+                      value={smtpUser}
+                      onChange={(e) => {
+                        setSmtpUser(e.target.value);
+                        if (!senderEmail) setSenderEmail(e.target.value);
+                      }}
+                      className="h-8 text-xs font-mono"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-mono text-muted-foreground block mb-1">
-                      Resend API Key (Optional)
+                    <label className="text-[11px] font-mono font-semibold text-foreground block mb-1">
+                      16-Character App Password *
                     </label>
                     <Input
                       type="password"
-                      placeholder="re_xxxxxxxxxxxx"
-                      value={resendApiKey}
-                      onChange={(e) => setResendApiKey(e.target.value)}
+                      placeholder="xxxx xxxx xxxx xxxx"
+                      value={smtpPass}
+                      onChange={(e) => setSmtpPass(e.target.value)}
                       className="h-8 text-xs font-mono"
                     />
                   </div>

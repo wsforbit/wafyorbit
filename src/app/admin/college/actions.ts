@@ -314,11 +314,19 @@ export interface BulkEmailMessage {
   bodyHtml?: string;
 }
 
+export interface SmtpConfig {
+  host?: string;
+  port?: number;
+  secure?: boolean;
+  user?: string;
+  pass?: string;
+}
+
 export interface SendBulkEmailsOptions {
   messages: BulkEmailMessage[];
   senderName?: string;
   senderEmail?: string;
-  resendApiKey?: string;
+  smtp?: SmtpConfig;
 }
 
 export interface SendEmailResult {
@@ -327,7 +335,6 @@ export interface SendEmailResult {
   toEmail: string;
   status: "sent" | "failed" | "simulated";
   error?: string;
-  resendId?: string;
 }
 
 export interface SendBulkEmailsResponse {
@@ -341,12 +348,17 @@ export interface SendBulkEmailsResponse {
 }
 
 /**
- * Sends mail-merged bulk emails to colleges via Resend API or direct simulation
+ * Sends mail-merged bulk emails to colleges via SMTP (Gmail / Custom SMTP)
  */
 export async function sendBulkCollegeEmailsAction(
   options: SendBulkEmailsOptions
 ): Promise<SendBulkEmailsResponse> {
-  const { messages, senderName = "Wafy Orbit Administration", senderEmail, resendApiKey } = options;
+  const {
+    messages,
+    senderName = "Wafy Orbit Administration",
+    senderEmail,
+    smtp,
+  } = options;
 
   if (!messages || messages.length === 0) {
     return {
@@ -360,16 +372,36 @@ export async function sendBulkCollegeEmailsAction(
     };
   }
 
-  const apiKey = resendApiKey?.trim() || process.env.RESEND_API_KEY || "";
-  const fromAddress = senderEmail?.trim() || process.env.RESEND_FROM_EMAIL || "Wafy Orbit <onboarding@resend.dev>";
+  // Resolve SMTP Credentials from payload or environment variables
+  const rawUser = smtp?.user?.trim() || process.env.SMTP_USER || process.env.GMAIL_USER || "";
+  const rawPass = smtp?.pass?.trim() || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || "";
+  const smtpHost = smtp?.host?.trim() || process.env.SMTP_HOST || "smtp.gmail.com";
+  const smtpPort = Number(smtp?.port || process.env.SMTP_PORT || (smtpHost.includes("gmail") ? 465 : 587));
+  const smtpSecure = smtpPort === 465;
+
+  // Clean and sanitize user & password (strip quotes and spaces from App Passwords)
+  const smtpUser = rawUser.replace(/^["']|["']$/g, "").trim();
+  const smtpPass = rawPass.replace(/^["']|["']$/g, "").replace(/\s+/g, "").trim();
+
+  let rawFromEmail = senderEmail?.trim() || process.env.SMTP_FROM || smtpUser || "";
+  if (rawFromEmail && !rawFromEmail.includes("@")) {
+    rawFromEmail = `${rawFromEmail}@gmail.com`;
+  }
+  if (!rawFromEmail) {
+    rawFromEmail = smtpUser;
+  }
+
+  const fromFormatted = rawFromEmail.includes("<")
+    ? rawFromEmail
+    : `${senderName} <${rawFromEmail}>`;
 
   const results: SendEmailResult[] = [];
   let sentCount = 0;
   let failedCount = 0;
   let simulatedCount = 0;
 
-  // If no Resend API key is configured, perform validated simulation
-  if (!apiKey) {
+  // If no SMTP credentials provided, perform validated simulation
+  if (!smtpUser || !smtpPass) {
     for (const msg of messages) {
       if (!msg.toEmail || !msg.toEmail.includes("@")) {
         results.push({
@@ -377,7 +409,7 @@ export async function sendBulkCollegeEmailsAction(
           collegeName: msg.collegeName,
           toEmail: msg.toEmail,
           status: "failed",
-          error: "Invalid or missing email address in registry.",
+          error: "Missing or invalid recipient email address in college registry.",
         });
         failedCount++;
       } else {
@@ -386,7 +418,6 @@ export async function sendBulkCollegeEmailsAction(
           collegeName: msg.collegeName,
           toEmail: msg.toEmail,
           status: "simulated",
-          error: undefined,
         });
         simulatedCount++;
       }
@@ -399,97 +430,116 @@ export async function sendBulkCollegeEmailsAction(
       failed: failedCount,
       simulated: simulatedCount,
       results,
-      message: `Verified and prepared ${simulatedCount} personalized emails. (Add RESEND_API_KEY to your .env.local to send live emails directly)`,
+      message: `Verified and prepared ${simulatedCount} personalized emails. Add SMTP_USER and SMTP_PASS in your .env.local to dispatch live emails.`,
     };
   }
 
-  // Live dispatch via Resend API
-  for (const msg of messages) {
-    if (!msg.toEmail || !msg.toEmail.includes("@")) {
-      results.push({
-        affno: msg.affno,
-        collegeName: msg.collegeName,
-        toEmail: msg.toEmail,
-        status: "failed",
-        error: "Missing or invalid recipient email address.",
-      });
-      failedCount++;
-      continue;
+  // Connect and Dispatch via Nodemailer SMTP
+  try {
+    const nodemailer = await import("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
+    // Test connection & credentials
+    try {
+      await transporter.verify();
+    } catch (authErr: unknown) {
+      const authMsg = authErr instanceof Error ? authErr.message : "SMTP Authentication failed.";
+      return {
+        success: false,
+        total: messages.length,
+        sent: 0,
+        failed: messages.length,
+        simulated: 0,
+        results: messages.map((m) => ({
+          affno: m.affno,
+          collegeName: m.collegeName,
+          toEmail: m.toEmail,
+          status: "failed",
+          error: `SMTP Authentication failed: ${authMsg}. Check your Email and 16-character Google App Password.`,
+        })),
+        message: `Gmail/SMTP Authentication failed: ${authMsg}. Please verify your 16-character App Password.`,
+      };
     }
 
-    try {
-      const payload: Record<string, unknown> = {
-        from: fromAddress.includes("<") ? fromAddress : `${senderName} <${fromAddress}>`,
-        to: [msg.toEmail],
-        subject: msg.subject,
-        text: msg.bodyText,
-      };
+    // Dispatch loop
+    for (const msg of messages) {
+      if (!msg.toEmail || !msg.toEmail.includes("@")) {
+        results.push({
+          affno: msg.affno,
+          collegeName: msg.collegeName,
+          toEmail: msg.toEmail,
+          status: "failed",
+          error: "Missing or invalid recipient email address.",
+        });
+        failedCount++;
+        continue;
+      }
 
-      if (msg.bodyHtml) {
-        payload.html = msg.bodyHtml;
-      } else {
-        // Convert line breaks to HTML paragraphs/breaks
-        payload.html = `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      try {
+        const htmlContent = msg.bodyHtml || `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222; max-width: 650px;">
             ${msg.bodyText
               .split("\n\n")
               .map((p) => `<p style="margin-bottom: 12px;">${p.replace(/\n/g, "<br/>")}</p>`)
               .join("")}
           </div>
         `;
-      }
 
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+        await transporter.sendMail({
+          from: fromFormatted,
+          to: msg.toEmail,
+          subject: msg.subject,
+          text: msg.bodyText,
+          html: htmlContent,
+        });
 
-      const resData = await res.json();
-
-      if (res.ok && resData.id) {
         results.push({
           affno: msg.affno,
           collegeName: msg.collegeName,
           toEmail: msg.toEmail,
           status: "sent",
-          resendId: resData.id,
         });
         sentCount++;
-      } else {
-        const errorMsg = resData.message || (typeof resData.error === "string" ? resData.error : "Failed to send email.");
+      } catch (sendErr: unknown) {
+        const sendErrMsg = sendErr instanceof Error ? sendErr.message : "Failed to deliver email.";
         results.push({
           affno: msg.affno,
           collegeName: msg.collegeName,
           toEmail: msg.toEmail,
           status: "failed",
-          error: errorMsg,
+          error: sendErrMsg,
         });
         failedCount++;
       }
-    } catch (err: unknown) {
-      const errText = err instanceof Error ? err.message : "Network error during email dispatch.";
-      results.push({
-        affno: msg.affno,
-        collegeName: msg.collegeName,
-        toEmail: msg.toEmail,
-        status: "failed",
-        error: errText,
-      });
-      failedCount++;
     }
-  }
 
-  return {
-    success: sentCount > 0 || simulatedCount > 0,
-    total: messages.length,
-    sent: sentCount,
-    failed: failedCount,
-    simulated: simulatedCount,
-    results,
-    message: `Batch complete: ${sentCount} sent successfully${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
-  };
+    return {
+      success: sentCount > 0,
+      total: messages.length,
+      sent: sentCount,
+      failed: failedCount,
+      simulated: 0,
+      results,
+      message: `Batch Complete: ${sentCount} emails sent successfully via ${smtpUser}${failedCount > 0 ? `, ${failedCount} failed` : ""}.`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Email service error.";
+    return {
+      success: false,
+      total: messages.length,
+      sent: 0,
+      failed: messages.length,
+      simulated: 0,
+      results: [],
+      message: msg,
+    };
+  }
 }
