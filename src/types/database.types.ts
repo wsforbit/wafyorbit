@@ -200,3 +200,13 @@ export interface ConstituencyLeadershipRecord {
     college?: College | null;
   } | null;
 }
+
+export interface CollegeUnassignedGroup {
+  affno: string;
+  collegeName: string;
+  shortName: string;
+  place: string;
+  district: string;
+  studentCount: number;
+  students: Student[];
+}

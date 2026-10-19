@@ -9,6 +9,7 @@ import type {
   OrbitLeadershipRecord,
   DistrictLeadershipRecord,
   ConstituencyLeadershipRecord,
+  CollegeUnassignedGroup,
 } from "@/types/database.types";
 
 /**
@@ -567,5 +568,83 @@ export async function getConstituencyLeadershipData(): Promise<ConstituencyLeade
   } catch (error) {
     console.error("Error fetching constituency leadership data:", error);
     return [];
+  }
+}
+
+/**
+ * Fetches all unassigned students (orbit_id is null, empty or 'none'), grouped in College order
+ */
+export async function getUnassignedStudentsGroupedByCollege(): Promise<{
+  totalUnassigned: number;
+  totalColleges: number;
+  groups: CollegeUnassignedGroup[];
+}> {
+  try {
+    const supabase = await createClient();
+
+    const { data: rawStudents, error } = await supabase
+      .from("students")
+      .select("*, college:colleges(*)")
+      .order("student_name", { ascending: true });
+
+    if (error || !rawStudents) {
+      console.error("Error fetching unassigned students:", error);
+      return { totalUnassigned: 0, totalColleges: 0, groups: [] };
+    }
+
+    // Filter unassigned students in memory
+    const unassignedStudents = (rawStudents as (Student & { college?: College | null })[]).filter(
+      (s) => !s.orbit_id || s.orbit_id.trim() === "" || s.orbit_id.toLowerCase() === "none"
+    );
+
+    // Group by College
+    const collegeMap = new Map<string, CollegeUnassignedGroup>();
+
+    unassignedStudents.forEach((student) => {
+      const aff = (student.affno || student.college?.affno || "UNSPECIFIED").trim();
+      const colName = (student.college?.name || (aff !== "UNSPECIFIED" ? `College (${aff})` : "Independent / Unassigned Campus")).trim();
+      const shortName = student.college?.short_name || colName;
+      const place = student.college?.place || student.place || "—";
+      const district = student.college?.district || student.district || "—";
+
+      if (!collegeMap.has(aff)) {
+        collegeMap.set(aff, {
+          affno: aff,
+          collegeName: colName,
+          shortName,
+          place,
+          district,
+          studentCount: 0,
+          students: [],
+        });
+      }
+
+      const grp = collegeMap.get(aff)!;
+      grp.studentCount += 1;
+      grp.students.push({
+        ...student,
+        cicno: student.cicno,
+        student_name: student.student_name,
+        class_name: student.class_name || "1",
+        place: student.place || "—",
+        role: student.role || "member",
+      });
+    });
+
+    // Sort groups in college order (alphabetical by collegeName, with unspecified at the end)
+    const groups = Array.from(collegeMap.values()).sort((a, b) => {
+      if (a.affno === "UNSPECIFIED") return 1;
+      if (b.affno === "UNSPECIFIED") return -1;
+      return a.collegeName.localeCompare(b.collegeName);
+    });
+
+    return {
+      totalUnassigned: unassignedStudents.length,
+      totalColleges: groups.length,
+      groups,
+    };
+  } catch (error) {
+    console.error("Error in getUnassignedStudentsGroupedByCollege:", error);
+    return { totalUnassigned: 0, totalColleges: 0, groups: [] };
   }
 }

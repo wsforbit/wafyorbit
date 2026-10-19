@@ -21,15 +21,22 @@ import { Footer } from "@/components/layout/footer";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getAdminDashboardStats, getActiveOrbits, getColleges } from "@/lib/supabase/data";
+import {
+  getAdminDashboardStats,
+  getActiveOrbits,
+  getColleges,
+  getUnassignedStudentsGroupedByCollege,
+} from "@/lib/supabase/data";
+import { UnassignedStatCard } from "@/components/admin/unassigned-stat-card";
 
 export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
-  const [stats, activeOrbits, colleges] = await Promise.all([
+  const [stats, activeOrbits, colleges, unassignedData] = await Promise.all([
     getAdminDashboardStats(),
     getActiveOrbits(),
     getColleges(),
+    getUnassignedStudentsGroupedByCollege(),
   ]);
 
   const assignedPercentage =
@@ -206,21 +213,13 @@ export default async function AdminDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* 6. Not Yet Assigned to Orbit Count */}
-            <Card className="bg-card">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-mono uppercase text-muted-foreground">
-                  6. Not Yet Assigned
-                </CardTitle>
-                <UserX className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-serif font-bold text-foreground">
-                  {stats.studentUnassignedCount.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Awaiting orbit placement</p>
-              </CardContent>
-            </Card>
+            {/* 6. Not Yet Assigned to Orbit Count (Clickable with Modal & Colorful PDF) */}
+            <UnassignedStatCard
+              unassignedCount={stats.studentUnassignedCount}
+              initialGroups={unassignedData.groups}
+              initialTotalUnassigned={unassignedData.totalUnassigned}
+              initialTotalColleges={unassignedData.totalColleges}
+            />
 
           </div>
 
