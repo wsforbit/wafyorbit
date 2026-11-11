@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   PlusCircle,
@@ -19,6 +19,13 @@ import {
   FileSpreadsheet,
   Download,
   FileText,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  Search,
+  Mail,
+  Lock,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +39,7 @@ import {
   updateOrbitAction,
   deleteOrbitAction,
   mergeOrbitsAction,
+  getOrbitAuthCredentialsAction,
   type OrbitFormPayload,
 } from "@/app/admin/orbit/actions";
 import type { Orbit, OrbitStatus } from "@/types/database.types";
@@ -43,13 +51,23 @@ interface Props {
 export function OrbitSettingsClient({ initialOrbits }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [orbits, setOrbits] = useState<Orbit[]>(initialOrbits);
+
+  // Sync state whenever initialOrbits prop changes from server
+  useEffect(() => {
+    setOrbits(initialOrbits);
+  }, [initialOrbits]);
+
   const [activeTab, setActiveTab] = useState<"manage" | "single" | "bulk" | "merge">("manage");
   const [isPending, startTransition] = useTransition();
+
+  // Search Query for Manage Tab Table
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Banner Feedback
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // Auth Credentials Modal State
+  // Auth Credentials Modal State (When Single Add creates new)
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; pass: string } | null>(null);
 
   // Single Add Form State (Exact database schema match)
@@ -75,6 +93,25 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
 
   // Edit Modal State
   const [editingOrbit, setEditingOrbit] = useState<Orbit | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDistrict, setEditDistrict] = useState("");
+  const [editTaluk, setEditTaluk] = useState("");
+  const [editState, setEditState] = useState("Kerala");
+  const [editStatus, setEditStatus] = useState<OrbitStatus>("active");
+  const [editConstituency, setEditConstituency] = useState("");
+  const [editPanchayaths, setEditPanchayaths] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+
+  // Leader Auth Edit State
+  const [editEmail, setEditEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoadingAuth, setIsLoadingAuth] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [copiedOldPass, setCopiedOldPass] = useState(false);
 
   // Delete Modal State
   const [deletingOrbit, setDeletingOrbit] = useState<Orbit | null>(null);
@@ -84,8 +121,26 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
   const [targetOrbitId, setTargetOrbitId] = useState<string>("");
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
 
+  // Filtered Orbits for Table Search
+  const filteredOrbits = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return orbits;
+    return orbits.filter((o) => {
+      return (
+        o.id.toLowerCase().includes(q) ||
+        o.name.toLowerCase().includes(q) ||
+        o.district.toLowerCase().includes(q) ||
+        o.taluk.toLowerCase().includes(q) ||
+        (o.constituency && o.constituency.toLowerCase().includes(q)) ||
+        (o.panchayaths && o.panchayaths.toLowerCase().includes(q))
+      );
+    });
+  }, [orbits, searchQuery]);
+
   // Active Orbits for Merge Selection
-  const activeOrbits = initialOrbits.filter((o) => o.status === "active");
+  const activeOrbits = useMemo(() => {
+    return orbits.filter((o) => o.status === "active");
+  }, [orbits]);
 
   // Handle CSV File Upload via File Picker
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,26 +276,121 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
     }
   };
 
+  // Open Edit Modal with Pre-populated details & fetch actual leader auth credentials
+  const handleOpenEdit = (orbit: Orbit) => {
+    setEditingOrbit(orbit);
+    setEditName(orbit.name);
+    setEditDistrict(orbit.district);
+    setEditTaluk(orbit.taluk);
+    setEditState(orbit.state || "Kerala");
+    setEditStatus(orbit.status);
+    setEditConstituency(orbit.constituency || "");
+    setEditPanchayaths(orbit.panchayaths || "");
+    setEditDescription(orbit.description || "");
+
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+    setShowOldPassword(false);
+    setCopiedOldPass(false);
+
+    // Default formula fallback while fetching
+    const firstWord = orbit.name.trim().split(/[\s,]+/)[0]?.toLowerCase().replace(/[^a-z0-9]/g, "") || "orbit";
+    setEditEmail(`${firstWord}@orbit.com`);
+    setCurrentPassword(`${orbit.id}_${firstWord}`);
+    setIsLoadingAuth(true);
+
+    getOrbitAuthCredentialsAction(orbit.id, orbit.name)
+      .then((res) => {
+        if (res.success) {
+          if (res.email) setEditEmail(res.email);
+          if (res.currentPassword) setCurrentPassword(res.currentPassword);
+        }
+      })
+      .finally(() => {
+        setIsLoadingAuth(false);
+      });
+  };
+
+  // Copy Old Password
+  const handleCopyOldPassword = () => {
+    if (!currentPassword) return;
+    navigator.clipboard.writeText(currentPassword);
+    setCopiedOldPass(true);
+    setTimeout(() => setCopiedOldPass(false), 2000);
+  };
+
   // 3. Edit Handler
   const handleUpdateOrbit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingOrbit) return;
     setFeedback(null);
 
+    // Validate passwords if entered (password need to enter two times)
+    if (newPassword || confirmPassword) {
+      if (newPassword !== confirmPassword) {
+        setFeedback({
+          type: "error",
+          message: "New Password and Confirm New Password do not match. Please verify both password fields.",
+        });
+        return;
+      }
+      if (newPassword.length < 6) {
+        setFeedback({
+          type: "error",
+          message: "New Password must be at least 6 characters long.",
+        });
+        return;
+      }
+    }
+
     startTransition(async () => {
       const res = await updateOrbitAction(editingOrbit.id, {
-        name: editingOrbit.name,
-        status: editingOrbit.status,
-        state: editingOrbit.state,
-        district: editingOrbit.district,
-        taluk: editingOrbit.taluk,
-        constituency: editingOrbit.constituency || undefined,
-        panchayaths: editingOrbit.panchayaths || undefined,
-        description: editingOrbit.description || undefined,
+        name: editName,
+        status: editStatus,
+        state: editState,
+        district: editDistrict,
+        taluk: editTaluk,
+        constituency: editConstituency || undefined,
+        panchayaths: editPanchayaths || undefined,
+        description: editDescription || undefined,
+        email: editEmail,
+        newPassword: newPassword || undefined,
       });
 
       if (res.success) {
-        setFeedback({ type: "success", message: `Orbit '${editingOrbit.id}' updated successfully.` });
+        // Optimistically update local orbits state immediately
+        setOrbits((prev) =>
+          prev.map((o) =>
+            o.id === editingOrbit.id
+              ? {
+                  ...o,
+                  name: editName.trim(),
+                  status: editStatus,
+                  state: editState,
+                  district: editDistrict.trim(),
+                  taluk: editTaluk.trim(),
+                  constituency: editConstituency.trim() || null,
+                  panchayaths: editPanchayaths.trim() || null,
+                  description: editDescription.trim() || null,
+                }
+              : o
+          )
+        );
+
+        let successMsg = `Orbit '${editingOrbit.id}' (${editName}) updated successfully.`;
+        if (newPassword) {
+          successMsg += ` Leader password updated to '${newPassword}' without verification.`;
+        }
+        if (editEmail) {
+          successMsg += ` Login email: ${editEmail}.`;
+        }
+
+        setFeedback({
+          type: "success",
+          message: successMsg,
+        });
         setEditingOrbit(null);
         router.refresh();
       } else {
@@ -258,6 +408,7 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
       const res = await deleteOrbitAction(deletingOrbit.id);
       if (res.success) {
         setFeedback({ type: "success", message: `Orbit '${deletingOrbit.name}' was deleted.` });
+        setOrbits((prev) => prev.filter((o) => o.id !== deletingOrbit.id));
         setDeletingOrbit(null);
         router.refresh();
       } else {
@@ -280,6 +431,9 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
           type: "success",
           message: res.message || `Successfully merged '${sourceOrbitId}' into '${targetOrbitId}'.`,
         });
+        setOrbits((prev) =>
+          prev.map((o) => (o.id === sourceOrbitId ? { ...o, status: "inactive" } : o))
+        );
         setSourceOrbitId("");
         setTargetOrbitId("");
         router.refresh();
@@ -320,7 +474,7 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
-          All Orbits ({initialOrbits.length})
+          All Orbits ({orbits.length})
         </button>
         <button
           onClick={() => setActiveTab("single")}
@@ -360,7 +514,7 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
       {/* ========================================================================= */}
       {activeTab === "manage" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="font-serif text-lg font-bold text-foreground">
                 Orbit Directory & Governance
@@ -369,9 +523,35 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
                 View, edit details, or toggle status of all registered institutional orbits.
               </p>
             </div>
+
+            {/* Quick Search Input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search orbits (name, ID, district)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-8 text-xs font-mono"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-2 text-[10px] text-muted-foreground hover:text-foreground font-mono"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
-          {initialOrbits.length > 0 ? (
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-mono px-1">
+            <span>
+              Showing <strong>{filteredOrbits.length}</strong> of <strong>{orbits.length}</strong> registered orbits
+            </span>
+          </div>
+
+          {filteredOrbits.length > 0 ? (
             <Table className="bg-card">
               <TableHeader>
                 <TableRow>
@@ -384,7 +564,7 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {initialOrbits.map((orbit) => (
+                {filteredOrbits.map((orbit) => (
                   <TableRow key={orbit.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs font-bold text-primary">
                       {orbit.id}
@@ -410,8 +590,8 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setEditingOrbit(orbit)}
-                        className="h-8 px-2 text-xs gap-1"
+                        onClick={() => handleOpenEdit(orbit)}
+                        className="h-8 px-2 text-xs gap-1 cursor-pointer"
                       >
                         <Edit2 className="size-3.5" />
                         Edit
@@ -420,7 +600,7 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
                         size="sm"
                         variant="destructive"
                         onClick={() => setDeletingOrbit(orbit)}
-                        className="h-8 px-2 text-xs gap-1"
+                        className="h-8 px-2 text-xs gap-1 cursor-pointer"
                       >
                         <Trash2 className="size-3.5" />
                         Delete
@@ -431,9 +611,19 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
               </TableBody>
             </Table>
           ) : (
-            <p className="text-xs text-muted-foreground italic py-8 text-center border rounded-md">
-              No orbits registered in database yet.
-            </p>
+            <div className="text-xs text-muted-foreground italic py-10 text-center border rounded-md bg-card space-y-2">
+              <p>No orbits match your query "{searchQuery}".</p>
+              {searchQuery && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSearchQuery("")}
+                  className="text-xs h-7"
+                >
+                  Reset Search
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -786,94 +976,344 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: EDIT ORBIT CONTENT MODAL */}
+      {/* MODAL: EDIT ORBIT & LEADER AUTH MODAL */}
       {/* ========================================================================= */}
       {editingOrbit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <Card className="w-full max-w-xl shadow-2xl border-border bg-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto animate-in fade-in">
+          <Card className="w-full max-w-xl shadow-2xl border-border bg-card my-8 max-h-[92vh] flex flex-col overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border bg-muted/20 shrink-0">
               <div>
-                <Badge variant="default" className="text-[10px] font-mono">{editingOrbit.id}</Badge>
-                <CardTitle className="text-lg font-serif mt-1">Edit Orbit Details</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="default" className="text-[10px] font-mono uppercase bg-primary">
+                    ID: {editingOrbit.id}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground font-mono">Orbit Governance</span>
+                </div>
+                <CardTitle className="text-lg font-serif mt-1">Edit Orbit & Leader Login</CardTitle>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setEditingOrbit(null)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditingOrbit(null)}
+                className="cursor-pointer"
+              >
                 <X className="size-4" />
               </Button>
             </CardHeader>
-            <CardContent className="pt-4">
-              <form onSubmit={handleUpdateOrbit} className="space-y-4 text-xs sm:text-sm">
+            <CardContent className="pt-4 overflow-y-auto flex-1 space-y-4">
+              <form id="edit-orbit-form" onSubmit={handleUpdateOrbit} className="space-y-4 text-xs sm:text-sm">
+                
+                {/* 1. Orbit Name */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase text-foreground">Orbit Name *</label>
+                  <label className="text-xs font-semibold uppercase text-foreground">
+                    Orbit Full Name *
+                  </label>
                   <Input
                     required
-                    value={editingOrbit.name}
-                    onChange={(e) => setEditingOrbit({ ...editingOrbit, name: e.target.value })}
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="e.g. Calicut North Orbit"
+                    disabled={isPending}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* 2. District & Taluk */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase text-foreground">District *</label>
+                    <label className="text-xs font-semibold uppercase text-foreground">
+                      District *
+                    </label>
                     <Input
                       required
-                      value={editingOrbit.district}
-                      onChange={(e) => setEditingOrbit({ ...editingOrbit, district: e.target.value })}
+                      value={editDistrict}
+                      onChange={(e) => setEditDistrict(e.target.value)}
+                      placeholder="e.g. Kozhikode"
+                      disabled={isPending}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase text-foreground">Taluk *</label>
+                    <label className="text-xs font-semibold uppercase text-foreground">
+                      Taluk *
+                    </label>
                     <Input
                       required
-                      value={editingOrbit.taluk}
-                      onChange={(e) => setEditingOrbit({ ...editingOrbit, taluk: e.target.value })}
+                      value={editTaluk}
+                      onChange={(e) => setEditTaluk(e.target.value)}
+                      placeholder="e.g. Kozhikode Taluk"
+                      disabled={isPending}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* 3. Status & Constituency */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase text-foreground">Status</label>
+                    <label className="text-xs font-semibold uppercase text-foreground">
+                      Operational Status
+                    </label>
                     <select
-                      value={editingOrbit.status}
-                      onChange={(e) => setEditingOrbit({ ...editingOrbit, status: e.target.value as OrbitStatus })}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground"
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as OrbitStatus)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground cursor-pointer"
+                      disabled={isPending}
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase text-foreground">Constituency</label>
+                    <label className="text-xs font-semibold uppercase text-foreground">
+                      Assembly Constituency
+                    </label>
                     <Input
-                      value={editingOrbit.constituency || ""}
-                      onChange={(e) => setEditingOrbit({ ...editingOrbit, constituency: e.target.value })}
+                      value={editConstituency}
+                      onChange={(e) => setEditConstituency(e.target.value)}
+                      placeholder="e.g. Elathur"
+                      disabled={isPending}
                     />
                   </div>
                 </div>
 
+                {/* 4. Panchayaths */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase text-foreground">Panchayaths</label>
+                  <label className="text-xs font-semibold uppercase text-foreground">
+                    Panchayaths / Local Bodies
+                  </label>
                   <Input
-                    value={editingOrbit.panchayaths || ""}
-                    onChange={(e) => setEditingOrbit({ ...editingOrbit, panchayaths: e.target.value })}
+                    value={editPanchayaths}
+                    onChange={(e) => setEditPanchayaths(e.target.value)}
+                    placeholder="e.g. Kakkodi, Chelannur, Kakkur"
+                    disabled={isPending}
                   />
                 </div>
 
+                {/* 5. Description */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase text-foreground">Description</label>
+                  <label className="text-xs font-semibold uppercase text-foreground">
+                    Description / Operational Notes
+                  </label>
                   <Input
-                    value={editingOrbit.description || ""}
-                    onChange={(e) => setEditingOrbit({ ...editingOrbit, description: e.target.value })}
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Operational notes or collegiate cluster details"
+                    disabled={isPending}
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                  <Button type="button" variant="outline" onClick={() => setEditingOrbit(null)}>
+                {/* ========================================================================= */}
+                {/* SECTION: LEADER AUTH CREDENTIALS (EMAIL & PASSWORD) */}
+                {/* ========================================================================= */}
+                <div className="border-t border-border pt-4 mt-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="size-7 rounded bg-primary/10 flex items-center justify-center text-primary">
+                        <Key className="size-3.5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-serif font-bold text-foreground">
+                          Orbit Leader Login Credentials
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground">
+                          Directly update login email & password without verification.
+                        </p>
+                      </div>
+                    </div>
+                    {isLoadingAuth && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-primary font-mono">
+                        <Loader2 className="size-3 animate-spin" />
+                        <span>Fetching auth...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Leader Email Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase text-foreground flex items-center gap-1.5">
+                      <Mail className="size-3.5 text-primary" />
+                      <span>Leader Login Email *</span>
+                    </label>
+                    <Input
+                      type="email"
+                      required
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="e.g. calicut@orbit.com"
+                      className="font-mono text-xs"
+                      disabled={isPending || isLoadingAuth}
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      This is the email address used to log in at <code>/auth/login</code>. Changed immediately with auto-confirmation.
+                    </p>
+                  </div>
+
+                  {/* Password Entering (Entered Two Times) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase text-foreground flex items-center gap-1.5">
+                        <Lock className="size-3.5 text-primary" />
+                        <span>Set New Password (Enter Two Times)</span>
+                      </label>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        Leave blank to keep existing
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Password Entry 1 */}
+                      <div className="space-y-1">
+                        <div className="relative">
+                          <Input
+                            type={showNewPassword ? "text" : "password"}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Enter new password"
+                            className="font-mono text-xs pr-8"
+                            disabled={isPending || isLoadingAuth}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-2 top-2 text-muted-foreground hover:text-foreground p-0.5"
+                            title={showNewPassword ? "Hide password" : "Show password"}
+                          >
+                            {showNewPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground block">
+                          Min. 6 characters
+                        </span>
+                      </div>
+
+                      {/* Password Entry 2: Confirm */}
+                      <div className="space-y-1">
+                        <div className="relative">
+                          <Input
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Confirm new password"
+                            className="font-mono text-xs pr-8"
+                            disabled={isPending || isLoadingAuth}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-2 top-2 text-muted-foreground hover:text-foreground p-0.5"
+                            title={showConfirmPassword ? "Hide password" : "Show password"}
+                          >
+                            {showConfirmPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                          </button>
+                        </div>
+                        {newPassword && confirmPassword && (
+                          <span
+                            className={`text-[10px] block font-mono ${
+                              newPassword === confirmPassword
+                                ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                                : "text-destructive font-semibold"
+                            }`}
+                          >
+                            {newPassword === confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DISPLAY OLD PASSWORD DIRECTLY BELOW PASSWORD ENTERING */}
+                  <div className="p-3 rounded-lg bg-muted/60 border border-border/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Key className="size-3.5 text-primary" />
+                        <span className="text-[11px] font-mono font-bold uppercase text-foreground">
+                          Current / Old Active Password:
+                        </span>
+                      </div>
+                      <Badge variant="outline" className="text-[9px] font-mono text-primary border-primary/30">
+                        Active in System
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-background border border-border">
+                      <span className="font-mono text-xs sm:text-sm font-bold text-foreground tracking-wide select-all">
+                        {showOldPassword ? currentPassword || "—" : "••••••••••••"}
+                      </span>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowOldPassword(!showOldPassword)}
+                          className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          {showOldPassword ? (
+                            <>
+                              <EyeOff className="size-3" />
+                              <span>Hide</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="size-3" />
+                              <span>Show</span>
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyOldPassword}
+                          className="h-7 px-2 text-[11px] gap-1 cursor-pointer"
+                        >
+                          {copiedOldPass ? (
+                            <>
+                              <Check className="size-3 text-emerald-500" />
+                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      💡 <strong>Note:</strong> No need to enter this old password to set a new one. Enter a new password twice above only if you wish to change it.
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* Modal Footer Actions */}
+                <div className="flex justify-end gap-2 pt-3 border-t border-border shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingOrbit(null)}
+                    disabled={isPending}
+                    className="cursor-pointer text-xs"
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isPending}>
-                    {isPending ? <Loader2 className="size-4 animate-spin mr-1" /> : null}
-                    Save Changes
+                  <Button
+                    type="submit"
+                    disabled={isPending || (Boolean(newPassword) && newPassword !== confirmPassword)}
+                    className="gap-2 text-xs cursor-pointer"
+                  >
+                    {isPending ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Saving Changes...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="size-3.5" />
+                        Save Changes
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>

@@ -16,6 +16,11 @@ export interface OrbitFormPayload {
   description?: string;
 }
 
+export interface UpdateOrbitPayload extends Omit<OrbitFormPayload, "id"> {
+  email?: string;
+  newPassword?: string;
+}
+
 /**
  * Extracts the first word of the orbit name (before any space or comma)
  */
@@ -227,43 +232,247 @@ export async function bulkImportOrbitsWithAuthAction(records: OrbitFormPayload[]
 }
 
 /**
- * Updates Orbit record content (id is immutable)
+ * Fetches the current leader auth credentials (email and current/old password) for an orbit
+ */
+export async function getOrbitAuthCredentialsAction(orbitId: string, orbitName: string) {
+  if (!orbitId) {
+    return { success: false, email: "", currentPassword: "", error: "Orbit ID required." };
+  }
+
+  try {
+    const supabase = await createAdminClient();
+    const firstWord = extractFirstWord(orbitName);
+    const defaultEmail = `${firstWord}@orbit.com`;
+    const defaultPassword = `${orbitId}_${firstWord}`;
+
+    // Lookup profile by assigned_orbit_id
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, email, full_name")
+      .eq("assigned_orbit_id", orbitId)
+      .maybeSingle();
+
+    if (profile?.id) {
+      const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
+      const email = userData?.user?.email || profile.email || defaultEmail;
+      const currentPassword =
+        userData?.user?.user_metadata?.current_password || defaultPassword;
+
+      return {
+        success: true,
+        email,
+        currentPassword,
+      };
+    }
+
+    // Fallback: check if auth.users has a user with assigned_orbit_id or default email
+    const { data: usersData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    const user = usersData?.users?.find(
+      (u) =>
+        u.user_metadata?.assigned_orbit_id === orbitId ||
+        u.email?.toLowerCase() === defaultEmail.toLowerCase()
+    );
+
+    if (user) {
+      return {
+        success: true,
+        email: user.email || defaultEmail,
+        currentPassword: user.user_metadata?.current_password || defaultPassword,
+      };
+    }
+
+    return {
+      success: true,
+      email: defaultEmail,
+      currentPassword: defaultPassword,
+    };
+  } catch (err: unknown) {
+    console.error("Error fetching orbit auth credentials:", err);
+    const firstWord = extractFirstWord(orbitName);
+    return {
+      success: true,
+      email: `${firstWord}@orbit.com`,
+      currentPassword: `${orbitId}_${firstWord}`,
+    };
+  }
+}
+
+/**
+ * Updates Orbit record content and synchronizes Leader Auth account credentials (email and/or password) without verification
  */
 export async function updateOrbitAction(
   id: string,
-  payload: Omit<OrbitFormPayload, "id">
+  payload: UpdateOrbitPayload
 ) {
   if (!id || !payload.name || !payload.district || !payload.taluk) {
-    return { success: false, error: "Orbit Name, District, and Taluk are required." };
+    return { success: false, error: "Orbit Name, District, and Taluk are required fields." };
+  }
+
+  const cleanName = payload.name.trim();
+  const cleanDistrict = payload.district.trim();
+  const cleanTaluk = payload.taluk.trim();
+  const cleanEmail = payload.email?.trim().toLowerCase();
+  const newPassword = payload.newPassword?.trim();
+
+  if (newPassword && newPassword.length < 6) {
+    return { success: false, error: "Password must be at least 6 characters long." };
+  }
+
+  if (cleanEmail && !cleanEmail.includes("@")) {
+    return { success: false, error: "Please enter a valid email address." };
   }
 
   try {
     const supabase = await createAdminClient();
 
-    const { error } = await supabase
+    // 1. Update public.orbits table
+    const { data: updatedOrbit, error: dbError } = await supabase
       .from("orbits")
       .update({
-        name: payload.name.trim(),
+        name: cleanName,
         status: payload.status,
         state: payload.state || "Kerala",
-        district: payload.district.trim(),
-        taluk: payload.taluk.trim(),
+        district: cleanDistrict,
+        taluk: cleanTaluk,
         constituency: payload.constituency?.trim() || null,
         panchayaths: payload.panchayaths?.trim() || null,
         description: payload.description?.trim() || null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", id);
+      .eq("id", id)
+      .select()
+      .single();
 
-    if (error) throw error;
+    if (dbError) throw dbError;
+
+    // 2. Synchronize Leader Auth Account and Profile
+    const firstWord = extractFirstWord(cleanName);
+    const defaultEmail = `${firstWord}@orbit.com`;
+    const defaultPassword = `${id}_${firstWord}`;
+
+    try {
+      // Find profile for this orbit
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, email, full_name")
+        .eq("assigned_orbit_id", id)
+        .maybeSingle();
+
+      let targetUserId = profile?.id;
+      let existingUser = null;
+
+      if (targetUserId) {
+        const { data: uData } = await supabase.auth.admin.getUserById(targetUserId);
+        existingUser = uData?.user;
+      } else {
+        // Search in auth users list by assigned_orbit_id or default email
+        const { data: usersData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+        existingUser = usersData?.users?.find(
+          (u) =>
+            u.user_metadata?.assigned_orbit_id === id ||
+            u.email?.toLowerCase() === (cleanEmail || defaultEmail).toLowerCase()
+        );
+        targetUserId = existingUser?.id;
+      }
+
+      const targetEmail = cleanEmail || existingUser?.email || profile?.email || defaultEmail;
+
+      if (targetUserId && existingUser) {
+        // Auth user exists: update email and/or password with NO verification
+        const updateAttrs: {
+          email?: string;
+          email_confirm?: boolean;
+          password?: string;
+          user_metadata?: Record<string, any>;
+        } = {
+          email_confirm: true, // Auto-confirm email without verification!
+        };
+
+        if (cleanEmail && cleanEmail !== existingUser.email) {
+          updateAttrs.email = cleanEmail;
+        }
+
+        if (newPassword) {
+          updateAttrs.password = newPassword;
+        }
+
+        const existingMeta = existingUser.user_metadata || {};
+        updateAttrs.user_metadata = {
+          ...existingMeta,
+          full_name: cleanName,
+          assigned_orbit_id: id,
+          role: "leader",
+          ...(newPassword ? { current_password: newPassword } : {}),
+        };
+
+        const { error: authUpdateError } = await supabase.auth.admin.updateUserById(
+          targetUserId,
+          updateAttrs
+        );
+
+        if (authUpdateError) {
+          console.warn("Notice updating auth user:", authUpdateError.message);
+        }
+
+        // Ensure profile record is updated
+        await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id: targetUserId,
+              email: targetEmail,
+              full_name: cleanName,
+              role: "leader",
+              assigned_orbit_id: id,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "id" }
+          );
+      } else {
+        // No auth account yet for this orbit: create one directly with confirmed status
+        const initialPass = newPassword || defaultPassword;
+        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+          email: targetEmail,
+          password: initialPass,
+          email_confirm: true,
+          user_metadata: {
+            role: "leader",
+            full_name: cleanName,
+            assigned_orbit_id: id,
+            current_password: initialPass,
+          },
+        });
+
+        if (createError) {
+          console.warn("Notice creating new leader auth:", createError.message);
+        } else if (newUser?.user) {
+          await supabase
+            .from("profiles")
+            .upsert(
+              {
+                id: newUser.user.id,
+                email: targetEmail,
+                full_name: cleanName,
+                role: "leader",
+                assigned_orbit_id: id,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "id" }
+            );
+        }
+      }
+    } catch (authErr) {
+      console.warn("Leader auth sync notice:", authErr);
+    }
 
     revalidatePath("/admin/orbit");
     revalidatePath("/admin/orbit/settings");
     revalidatePath("/admin/dashboard");
     revalidatePath("/orbit-details/orbits");
+    revalidatePath("/orbit/dashboard");
     revalidatePath("/");
 
-    return { success: true };
+    return { success: true, orbit: updatedOrbit };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to update orbit.";
     return { success: false, error: msg };
