@@ -64,7 +64,6 @@ export async function createOrbitWithAuthAction(payload: OrbitFormPayload) {
         taluk: payload.taluk.trim(),
         constituency: payload.constituency?.trim() || null,
         panchayaths: payload.panchayaths?.trim() || null,
-        description: payload.description?.trim() || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id" }
@@ -166,7 +165,6 @@ export async function bulkImportOrbitsWithAuthAction(records: OrbitFormPayload[]
       taluk: r.taluk.trim(),
       constituency: r.constituency?.trim() || null,
       panchayaths: r.panchayaths?.trim() || null,
-      description: r.description?.trim() || null,
       updated_at: new Date().toISOString(),
     }));
 
@@ -336,7 +334,6 @@ export async function updateOrbitAction(
         taluk: cleanTaluk,
         constituency: payload.constituency?.trim() || null,
         panchayaths: payload.panchayaths?.trim() || null,
-        description: payload.description?.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -474,7 +471,13 @@ export async function updateOrbitAction(
 
     return { success: true, orbit: updatedOrbit };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to update orbit.";
+    console.error("Error in updateOrbitAction:", err);
+    const msg =
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+        ? String((err as any).message)
+        : "Failed to update orbit.";
     return { success: false, error: msg };
   }
 }
@@ -500,7 +503,12 @@ export async function deleteOrbitAction(id: string) {
 
     return { success: true };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to delete orbit.";
+    const msg =
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+        ? String((err as any).message)
+        : "Failed to delete orbit.";
     return { success: false, error: msg };
   }
 }
@@ -547,16 +555,11 @@ export async function mergeOrbitsAction(sourceOrbitId: string, targetOrbitId: st
 
     if (leaderErr) throw leaderErr;
 
-    // 3. Mark source orbit inactive and append merge note
-    const mergedDescription = source.description
-      ? `${source.description} (Merged into ${target.name} [${targetOrbitId}] on ${new Date().toLocaleDateString()})`
-      : `Merged into ${target.name} [${targetOrbitId}] on ${new Date().toLocaleDateString()}`;
-
+    // 3. Mark source orbit inactive
     const { error: orbitErr } = await supabase
       .from("orbits")
       .update({
         status: "inactive",
-        description: mergedDescription,
         updated_at: new Date().toISOString(),
       })
       .eq("id", sourceOrbitId);

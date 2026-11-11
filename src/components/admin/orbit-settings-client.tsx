@@ -1087,19 +1087,6 @@ ORB-ERNAKULAM,Cochin Coastal Orbit,active,Kerala,Ernakulam,Kochi,Aluva,"Aluva, K
                   />
                 </div>
 
-                {/* 5. Description */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase text-foreground">
-                    Description / Operational Notes
-                  </label>
-                  <Input
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    placeholder="Operational notes or collegiate cluster details"
-                    disabled={isPending}
-                  />
-                </div>
-
                 {/* ========================================================================= */}
                 {/* SECTION: LEADER AUTH CREDENTIALS (EMAIL & PASSWORD) */}
                 {/* ========================================================================= */}
