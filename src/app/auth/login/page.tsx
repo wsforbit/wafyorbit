@@ -45,18 +45,27 @@ export default function LoginPage() {
         return;
       }
 
-      // Check role in profiles table to route intelligently
+      // Check role and metadata to route intelligently
       const user = data.user;
       if (user) {
+        const email = (user.email || "").toLowerCase().trim();
+        const leaderType = user.user_metadata?.leader_type as string | undefined;
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
-        if (profile?.role === "leader") {
+        const role = profile?.role || user.user_metadata?.role;
+
+        if (email.startsWith("c_") || leaderType === "constituency" || role === "constituency") {
+          router.push("/constituency/dashboard");
+        } else if (email.startsWith("d_") || leaderType === "district" || role === "district") {
+          router.push("/district/dashboard");
+        } else if (role === "leader") {
           router.push("/orbit/dashboard");
-        } else if (profile?.role === "college") {
+        } else if (role === "college") {
           router.push("/college/dashboard");
         } else {
           router.push("/admin/dashboard");

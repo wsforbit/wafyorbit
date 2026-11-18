@@ -558,6 +558,7 @@ export async function getConstituencyLeadershipData(): Promise<ConstituencyLeade
         district: "Malappuram",
         orbit_id: primaryOrbit ? primaryOrbit.id : "—",
         orbit_name: primaryOrbit ? primaryOrbit.name : "—",
+        orbit_count: orbitsInConst.length,
         student_count: eligibleStudents.length,
         eligible_students: eligibleStudents,
         leader: leaderInfo,

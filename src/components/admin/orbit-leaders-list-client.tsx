@@ -40,7 +40,7 @@ interface Props {
 
 type OrbitSortField = "orbit_id" | "orbit_name" | "district" | "leader" | "asst_leader";
 type DistrictSortField = "district" | "orbit_count" | "student_count" | "leader";
-type ConstSortField = "constituency" | "orbit_name" | "student_count" | "leader";
+type ConstSortField = "constituency" | "orbit_count" | "student_count" | "leader";
 
 export function OrbitLeadersListClient({
   initialOrbitRecords,
@@ -279,6 +279,9 @@ export function OrbitLeadersListClient({
     });
 
     return filtered.sort((a, b) => {
+      if (constSortField === "orbit_count") {
+        return constSortDirection === "asc" ? a.orbit_count - b.orbit_count : b.orbit_count - a.orbit_count;
+      }
       if (constSortField === "student_count") {
         return constSortDirection === "asc" ? a.student_count - b.student_count : b.student_count - a.student_count;
       }
@@ -289,10 +292,6 @@ export function OrbitLeadersListClient({
         case "constituency":
           valA = a.constituency || "";
           valB = b.constituency || "";
-          break;
-        case "orbit_name":
-          valA = a.orbit_name || "";
-          valB = b.orbit_name || "";
           break;
         case "leader":
           valA = a.leader?.student_name || "";
@@ -819,10 +818,10 @@ export function OrbitLeadersListClient({
                       {renderSortIcon(constSortField, "constituency", constSortDirection)}
                     </div>
                   </TableHead>
-                  <TableHead className="w-48 cursor-pointer hover:bg-muted/50 select-none" onClick={() => handleConstSort("orbit_name")}>
-                    <div className="flex items-center gap-1">
-                      <span>Orbit Domain</span>
-                      {renderSortIcon(constSortField, "orbit_name", constSortDirection)}
+                  <TableHead className="w-36 text-center cursor-pointer hover:bg-muted/50 select-none" onClick={() => handleConstSort("orbit_count")}>
+                    <div className="flex items-center justify-center gap-1">
+                      <span>Active Orbits</span>
+                      {renderSortIcon(constSortField, "orbit_count", constSortDirection)}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50 select-none" onClick={() => handleConstSort("leader")}>
@@ -856,16 +855,10 @@ export function OrbitLeadersListClient({
                         </div>
                       </TableCell>
 
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <div className="font-medium text-xs text-foreground flex items-center gap-1">
-                            <Layers className="size-3 text-muted-foreground" />
-                            <span>{record.orbit_name}</span>
-                          </div>
-                          <Badge variant="outline" className="text-[9px] font-mono px-1 py-0">
-                            {record.orbit_id}
-                          </Badge>
-                        </div>
+                      <TableCell className="text-center font-mono text-xs">
+                        <Badge variant="secondary" className="font-mono text-xs">
+                          {record.orbit_count} {record.orbit_count === 1 ? "Orbit" : "Orbits"}
+                        </Badge>
                       </TableCell>
 
                       {/* Constituency Leader */}
@@ -1181,7 +1174,7 @@ export function OrbitLeadersListClient({
                   Malappuram Constituency Leadership
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Orbit: {selectedConstForModal.orbit_name} ({selectedConstForModal.orbit_id}) • {selectedConstForModal.student_count} Scholars
+                  {selectedConstForModal.orbit_count} Active {selectedConstForModal.orbit_count === 1 ? "Orbit" : "Orbits"} • {selectedConstForModal.student_count} Scholars
                 </CardDescription>
               </div>
               <Button

@@ -39,9 +39,16 @@ export async function updateSession(request: NextRequest) {
   const isAdminRoute = pathname.startsWith("/admin");
   const isLeaderRoute = pathname.startsWith("/orbit/dashboard");
   const isCollegeRoute = pathname.startsWith("/college/dashboard");
+  const isConstituencyRoute = pathname.startsWith("/constituency/dashboard");
+  const isDistrictRoute = pathname.startsWith("/district/dashboard");
   const isLoginPage = pathname === "/auth/login";
 
-  const isProtectedRoute = isAdminRoute || isLeaderRoute || isCollegeRoute;
+  const isProtectedRoute =
+    isAdminRoute ||
+    isLeaderRoute ||
+    isCollegeRoute ||
+    isConstituencyRoute ||
+    isDistrictRoute;
 
   // 2. Unauthenticated user handling
   if (isProtectedRoute && !user) {
@@ -58,7 +65,8 @@ export async function updateSession(request: NextRequest) {
 
   // 3. Authenticated user Role-Based Access Control (RBAC)
   if (user) {
-    // Resolve user role
+    const email = (user.email || "").toLowerCase().trim();
+    const leaderType = user.user_metadata?.leader_type as string | undefined;
     let role = user.user_metadata?.role as string | undefined;
 
     if (!role) {
@@ -71,10 +79,24 @@ export async function updateSession(request: NextRequest) {
       role = profile?.role || "admin";
     }
 
+    const isConstUser =
+      email.startsWith("c_") ||
+      leaderType === "constituency" ||
+      role === "constituency";
+
+    const isDistUser =
+      email.startsWith("d_") ||
+      leaderType === "district" ||
+      role === "district";
+
     // A) If already logged in and visiting login page -> route to appropriate dashboard
     if (isLoginPage) {
       const url = request.nextUrl.clone();
-      if (role === "leader") {
+      if (isConstUser) {
+        url.pathname = "/constituency/dashboard";
+      } else if (isDistUser) {
+        url.pathname = "/district/dashboard";
+      } else if (role === "leader") {
         url.pathname = "/orbit/dashboard";
       } else if (role === "college") {
         url.pathname = "/college/dashboard";
@@ -84,21 +106,35 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // B) If Leader attempts to access Admin or College routes -> redirect to Orbit Dashboard
-    if (role === "leader" && (isAdminRoute || isCollegeRoute)) {
+    // B) If Constituency Leader attempts to access Admin, College, or Orbit routes
+    if (isConstUser && (isAdminRoute || isCollegeRoute || isLeaderRoute || isDistrictRoute)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/constituency/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    // C) If District Leader attempts to access Admin, College, or Orbit routes
+    if (isDistUser && (isAdminRoute || isCollegeRoute || isLeaderRoute || isConstituencyRoute)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/district/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    // D) If Orbit Leader attempts to access Admin or College routes -> redirect to Orbit Dashboard
+    if (role === "leader" && !isConstUser && !isDistUser && (isAdminRoute || isCollegeRoute || isConstituencyRoute || isDistrictRoute)) {
       const url = request.nextUrl.clone();
       url.pathname = "/orbit/dashboard";
       return NextResponse.redirect(url);
     }
 
-    // C) If College Admin attempts to access Admin or Orbit routes -> redirect to College Dashboard
-    if (role === "college" && (isAdminRoute || isLeaderRoute)) {
+    // E) If College Admin attempts to access Admin or Orbit routes -> redirect to College Dashboard
+    if (role === "college" && (isAdminRoute || isLeaderRoute || isConstituencyRoute || isDistrictRoute)) {
       const url = request.nextUrl.clone();
       url.pathname = "/college/dashboard";
       return NextResponse.redirect(url);
     }
 
-    // D) Admin has unrestricted access to /admin and supervisory views
+    // F) Admin has unrestricted access to /admin and supervisory views
   }
 
   return supabaseResponse;

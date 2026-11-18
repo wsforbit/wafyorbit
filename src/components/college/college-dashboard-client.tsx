@@ -605,7 +605,7 @@ export function CollegeDashboardClient({ college, students, leaders }: Props) {
                   </Button>
 
                   {isPrintDropdownOpen && (
-                    <div className="absolute right-0 sm:right-auto sm:left-0 mt-1.5 w-72 max-h-80 overflow-y-auto rounded-lg border border-border bg-popover p-1.5 shadow-xl z-50 text-popover-foreground">
+                    <div className="absolute right-0 mt-1.5 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto rounded-lg border border-border bg-popover p-1.5 shadow-xl z-50 text-popover-foreground">
                       <div className="px-2.5 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground border-b border-border/50">
                         Export Student Roster PDF
                       </div>

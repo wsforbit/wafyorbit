@@ -185,6 +185,7 @@ export interface ConstituencyLeadershipRecord {
   district: string;
   orbit_id: string;
   orbit_name: string;
+  orbit_count: number;
   student_count: number;
   eligible_students: Student[];
   leader: {
