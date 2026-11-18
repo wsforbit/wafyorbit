@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   School,
@@ -28,6 +28,10 @@ import {
   Compass,
   Sparkles,
   Phone,
+  Printer,
+  FileDown,
+  ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatStudentClass, CLASS_OPTIONS } from "@/lib/class-helper";
+import { downloadCollegeStudentsPDF } from "@/lib/pdf/college-students-pdf";
 import type { College, Student, Orbit, OrbitLeader } from "@/types/database.types";
 
 interface Props {
@@ -65,6 +70,39 @@ export function CollegeDashboardClient({ college, students, leaders }: Props) {
 
   // Student Detail Modal
   const [selectedStudentForModal, setSelectedStudentForModal] = useState<Student | null>(null);
+
+  // Print Dropdown & PDF Generation State
+  const printDropdownRef = useRef<HTMLDivElement>(null);
+  const [isPrintDropdownOpen, setIsPrintDropdownOpen] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Close print dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (printDropdownRef.current && !printDropdownRef.current.contains(event.target as Node)) {
+        setIsPrintDropdownOpen(false);
+      }
+    }
+    if (isPrintDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isPrintDropdownOpen]);
+
+  // Handle PDF Generation
+  const handleDownloadPdf = async (targetClass: string = "ALL") => {
+    try {
+      setIsGeneratingPdf(true);
+      setIsPrintDropdownOpen(false);
+      await downloadCollegeStudentsPDF({ college, students, targetClass });
+    } catch (err) {
+      console.error("PDF generation error:", err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // Reset pagination on filter or sort change
   useEffect(() => {
@@ -543,6 +581,89 @@ export function CollegeDashboardClient({ college, students, leaders }: Props) {
                   </Button>
                 )}
 
+                {/* Print Roster Dropdown */}
+                <div className="relative" ref={printDropdownRef}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isGeneratingPdf}
+                    onClick={() => setIsPrintDropdownOpen((prev) => !prev)}
+                    className="h-9 text-xs gap-1.5 shrink-0 border-primary/30 text-foreground hover:bg-primary/10 hover:text-primary font-medium"
+                  >
+                    {isGeneratingPdf ? (
+                      <Loader2 className="size-3.5 animate-spin text-primary" />
+                    ) : (
+                      <Printer className="size-3.5 text-primary" />
+                    )}
+                    <span>Print</span>
+                    <ChevronDown
+                      className={`size-3 text-muted-foreground transition-transform duration-200 ${
+                        isPrintDropdownOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </Button>
+
+                  {isPrintDropdownOpen && (
+                    <div className="absolute right-0 sm:right-auto sm:left-0 mt-1.5 w-72 max-h-80 overflow-y-auto rounded-lg border border-border bg-popover p-1.5 shadow-xl z-50 text-popover-foreground">
+                      <div className="px-2.5 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground border-b border-border/50">
+                        Export Student Roster PDF
+                      </div>
+
+                      {/* General Option: All Data */}
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadPdf("ALL")}
+                        className="w-full mt-1.5 flex items-center justify-between rounded-md p-2 text-xs font-medium text-foreground hover:bg-primary hover:text-primary-foreground transition-colors group text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1 rounded bg-primary/10 text-primary group-hover:bg-primary-foreground/20 group-hover:text-primary-foreground">
+                            <FileDown className="size-3.5" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-xs">All Data (All Classes)</div>
+                            <div className="text-[10px] text-muted-foreground group-hover:text-primary-foreground/80">
+                              Full campus roster with class sections
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground group-hover:bg-primary-foreground/20 group-hover:text-primary-foreground">
+                          {totalStudents}
+                        </span>
+                      </button>
+
+                      <div className="my-1.5 border-t border-border/50" />
+                      <div className="px-2 py-1 text-[10px] font-mono uppercase text-muted-foreground flex items-center justify-between">
+                        <span>Classes of this College</span>
+                        <span>{classDistribution.length} classes</span>
+                      </div>
+
+                      {/* Individual Classes */}
+                      <div className="space-y-0.5 mt-0.5">
+                        {classDistribution.length > 0 ? (
+                          classDistribution.map((item) => (
+                            <button
+                              key={item.code}
+                              type="button"
+                              onClick={() => handleDownloadPdf(item.code)}
+                              className="w-full flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs text-foreground hover:bg-muted transition-colors text-left"
+                            >
+                              <span className="font-medium truncate pr-2">{item.label}</span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground shrink-0">
+                                {item.total} {item.total === 1 ? "student" : "students"}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                            No classes found with enrolled students.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
 
@@ -793,17 +914,33 @@ export function CollegeDashboardClient({ college, students, leaders }: Props) {
                       </span>
                     </div>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedClass(item.code);
-                        setActiveTab("students");
-                      }}
-                      className="w-full text-xs h-7 mt-1"
-                    >
-                      View Class Scholars
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedClass(item.code);
+                          setActiveTab("students");
+                        }}
+                        className="text-xs h-7"
+                      >
+                        View Scholars
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={isGeneratingPdf}
+                        onClick={() => handleDownloadPdf(item.code)}
+                        className="text-xs h-7 gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {isGeneratingPdf ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <Printer className="size-3" />
+                        )}
+                        Print PDF
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
